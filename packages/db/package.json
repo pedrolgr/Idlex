@@ -1,5 +1,5 @@
 {
-  "name": "@idlex/config",
+  "name": "@idlex/db",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,18 +10,24 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    },
-    "./tsconfig.base.json": "./tsconfig.base.json"
+    }
   },
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "push": "drizzle-kit push"
   },
   "dependencies": {
-    "zod": "^3.24.2"
+    "@idlex/config": "workspace:*",
+    "drizzle-orm": "^0.38.4",
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
+    "@types/pg": "^8.11.11",
+    "drizzle-kit": "^0.30.2",
     "typescript": "^5.7.3"
   }
 }

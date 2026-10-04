@@ -1,36 +1,49 @@
-import type { ServerResponse } from "node:http";
+import { LRUCache } from "lru-cache";
+import { z } from "zod";
 
-interface CachedAvatar {
+export const avatarQuerySchema = z.object({
+  outfitId: z.coerce.number().int().min(1).max(2000).default(128),
+  head: z.coerce.number().int().min(0).max(255).default(0),
+  body: z.coerce.number().int().min(0).max(255).default(0),
+  legs: z.coerce.number().int().min(0).max(255).default(0),
+  feet: z.coerce.number().int().min(0).max(255).default(0),
+  animate: z
+    .enum(["0", "1", "true", "false"])
+    .optional()
+    .transform((val) => val !== "0" && val !== "false"),
+  vocation: z.string().max(64).default("none"),
+});
+
+export type AvatarQuery = z.infer<typeof avatarQuerySchema>;
+
+export interface CachedAvatar {
   buffer: Buffer;
   contentType: string;
 }
 
-const avatarCache = new Map<string, CachedAvatar>();
+const avatarCache = new LRUCache<string, CachedAvatar>({
+  max: 2000,
+  maxSize: 50 * 1024 * 1024, // 50 MB
+  sizeCalculation: (val) => val.buffer.length,
+});
 
-export async function handleAvatarRequest(
-  url: URL,
-  res: ServerResponse,
-): Promise<void> {
-  const outfitId = parseInt(url.searchParams.get("outfitId") || "128", 10);
-  const head = parseInt(url.searchParams.get("head") || "0", 10);
-  const body = parseInt(url.searchParams.get("body") || "0", 10);
-  const legs = parseInt(url.searchParams.get("legs") || "0", 10);
-  const feet = parseInt(url.searchParams.get("feet") || "0", 10);
-  const animate = url.searchParams.get("animate") !== "0";
-  const vocation = (url.searchParams.get("vocation") || "none").toLowerCase();
+export async function fetchAvatar(
+  query: AvatarQuery,
+): Promise<{ buffer: Buffer; contentType: string; cacheControl: string }> {
+  const { outfitId, head, body, legs, feet, animate, vocation } = query;
+  const isAnimate = animate ?? true;
+  const cacheKey = `${isAnimate ? "anim" : "static"}-${outfitId}-${head}-${body}-${legs}-${feet}`;
 
-  const cacheKey = `${animate ? "anim" : "static"}-${outfitId}-${head}-${body}-${legs}-${feet}`;
   if (avatarCache.has(cacheKey)) {
     const cached = avatarCache.get(cacheKey)!;
-    res.writeHead(200, {
-      "Content-Type": cached.contentType,
-      "Cache-Control": "public, max-age=86400",
-    });
-    res.end(cached.buffer);
-    return;
+    return {
+      buffer: cached.buffer,
+      contentType: cached.contentType,
+      cacheControl: "public, max-age=604800, immutable",
+    };
   }
 
-  const endpoint = animate ? "animate" : "static";
+  const endpoint = isAnimate ? "animate" : "static";
   const remoteUrl = `https://gunzot-outfits.gunzo.eu/${endpoint}/${outfitId}?head=${head}&body=${body}&legs=${legs}&feet=${feet}&addons=0`;
 
   try {
@@ -44,24 +57,23 @@ export async function handleAvatarRequest(
       const buffer = Buffer.from(arrayBuffer);
       const contentType =
         resp.headers.get("content-type") ||
-        (animate ? "image/gif" : "image/png");
+        (isAnimate ? "image/gif" : "image/png");
       avatarCache.set(cacheKey, { buffer, contentType });
 
-      res.writeHead(200, {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400",
-      });
-      res.end(buffer);
-      return;
+      return {
+        buffer,
+        contentType,
+        cacheControl: "public, max-age=604800, immutable",
+      };
     }
   } catch {}
 
   const fallbackSvg = generateVocationSvg(vocation);
-  res.writeHead(200, {
-    "Content-Type": "image/svg+xml",
-    "Cache-Control": "public, max-age=3600",
-  });
-  res.end(fallbackSvg);
+  return {
+    buffer: Buffer.from(fallbackSvg),
+    contentType: "image/svg+xml",
+    cacheControl: "public, max-age=3600",
+  };
 }
 
 export function generateVocationSvg(vocation: string): string {

@@ -1,14 +1,39 @@
 import fs from "node:fs";
-import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { handleAvatarRequest } from "./modules/assets/avatar.js";
-import { handleItemIconRequest } from "./modules/assets/item-icon.js";
+import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
+import fastifyStatic from "@fastify/static";
+import { getEnv } from "@idlex/config";
+import { checkDatabaseConnection, closeDatabasePool } from "@idlex/db";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+} from "fastify";
+import {
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider,
+} from "fastify-type-provider-zod";
+import { z } from "zod";
+import {
+  avatarQuerySchema,
+  fetchAvatar,
+} from "./modules/assets/avatar.js";
+import {
+  fetchItemIcon,
+  itemIconQuerySchema,
+} from "./modules/assets/item-icon.js";
+import {
+  checkRedisConnection,
+  closeRedisClient,
+} from "./modules/redis/redis-client.js";
 import { Slot } from "./slot.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Resolve public dir from workspace root
 function resolvePublicDir(): string {
   const candidates = [
     path.resolve(__dirname, "../../../public"),
@@ -25,48 +50,79 @@ function resolvePublicDir(): string {
 
 const PUBLIC_DIR = resolvePublicDir();
 
-const MIME_TYPES: Record<string, string> = {
-  ".html": "text/html; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".js": "application/javascript; charset=utf-8",
-  ".mjs": "application/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
-};
+export async function createServerApp(): Promise<{
+  app: FastifyInstance;
+  slots: Slot[];
+  broadcastSSE: () => void;
+  shutdown: () => Promise<void>;
+}> {
+  const env = getEnv();
 
-export function sendJson(
-  res: http.ServerResponse,
-  statusCode: number,
-  data: unknown,
-): void {
-  res.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
+  const app = Fastify({
+    logger: {
+      level: env.LOG_LEVEL,
+      redact: [
+        "req.headers.cookie",
+        "req.headers.authorization",
+        "*.password",
+        "*.email",
+        "*.ticket",
+        "*.credentials*",
+      ],
+    },
+    bodyLimit: 65536, // 64 KB
+    trustProxy: true,
   });
-  res.end(JSON.stringify(data));
-}
 
-export function parseJsonBody(req: http.IncomingMessage): Promise<Record<string, any>> {
-  return new Promise((resolve) => {
-    let body = "";
-    req.on("data", (chunk: Buffer | string) => {
-      body += chunk;
-      if (body.length > 1e6) req.destroy();
-    });
-    req.on("end", () => {
-      try {
-        resolve(JSON.parse(body || "{}"));
-      } catch {
-        resolve({});
-      }
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+
+  // Security Plugins
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "https://gunzot-outfits.gunzo.eu",
+          "https://tibiopedia.pl",
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        connectSrc: ["'self'"],
+        frameAncestors: ["'none'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+      },
+    },
+  });
+
+  await app.register(cors, {
+    origin: [env.APP_ORIGIN, "http://localhost:3000", "http://127.0.0.1:3000"],
+    credentials: true,
+  });
+
+  await app.register(rateLimit, {
+    max: 300,
+    timeWindow: "1 minute",
+    allowList: ["127.0.0.1", "localhost"],
+  });
+
+  // Centralized Error Handler
+  app.setErrorHandler((error, request, reply) => {
+    request.log.error(error);
+    const err = error as { statusCode?: number; message?: string; code?: string };
+    const statusCode = err.statusCode || 500;
+    void reply.status(statusCode).send({
+      error: err.message || "Internal Server Error",
+      code: err.code || "INTERNAL_ERROR",
+      requestId: request.id,
+      statusCode,
     });
   });
-}
 
-export function createServerApp() {
-  const sseClients = new Set<http.ServerResponse>();
+  // SSE setup
+  const sseClients = new Set<FastifyReply>();
   let sseBroadcastTimer: NodeJS.Timeout | null = null;
 
   function broadcastSSE(): void {
@@ -75,11 +131,11 @@ export function createServerApp() {
       sseBroadcastTimer = null;
       if (sseClients.size === 0) return;
       const payload = `data: ${JSON.stringify(slots.map((s) => s.toJSON()))}\n\n`;
-      for (const res of sseClients) {
+      for (const reply of sseClients) {
         try {
-          res.write(payload);
+          reply.raw.write(payload);
         } catch {
-          sseClients.delete(res);
+          sseClients.delete(reply);
         }
       }
     }, 100);
@@ -94,375 +150,578 @@ export function createServerApp() {
 
   const sseInterval = setInterval(broadcastSSE, 1000);
 
-  const server = http.createServer(async (req, res) => {
-    const host = req.headers.host || "localhost";
-    const url = new URL(req.url || "/", `http://${host}`);
-    const pathname = url.pathname;
+  // Healthcheck endpoints
+  app.get("/healthz", async (_req, reply) => {
+    return reply.status(200).send({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+    });
+  });
 
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  app.get("/readyz", async (_req, reply) => {
+    const [dbCheck, redisCheck] = await Promise.all([
+      checkDatabaseConnection(),
+      checkRedisConnection(),
+    ]);
 
-    if (req.method === "OPTIONS") {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
+    const isReady = dbCheck.connected;
+    const statusCode = isReady ? 200 : 503;
 
-    if (pathname === "/favicon.ico" || pathname === "/favicon.svg") {
-      const faviconPath = path.join(PUBLIC_DIR, "favicon.svg");
-      fs.readFile(faviconPath, (err, data) => {
-        if (err) {
-          res.writeHead(404);
-          res.end();
-          return;
-        }
-        res.writeHead(200, {
-          "Content-Type": "image/svg+xml",
-          "Cache-Control": "public, max-age=86400",
-        });
-        res.end(data);
-      });
-      return;
-    }
+    return reply.status(statusCode).send({
+      status: isReady ? "ready" : "not_ready",
+      db: dbCheck,
+      redis: redisCheck,
+      timestamp: new Date().toISOString(),
+    });
+  });
 
-    if (pathname === "/api/events") {
-      res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      });
-      res.write(`data: ${JSON.stringify(slots.map((s) => s.toJSON()))}\n\n`);
-      sseClients.add(res);
+  // SSE route handler
+  function handleSse(req: FastifyRequest, reply: FastifyReply) {
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+    });
 
-      req.on("close", () => {
-        sseClients.delete(res);
-      });
-      return;
-    }
-
-    if (pathname === "/api/slots" && req.method === "GET") {
-      sendJson(
-        res,
-        200,
-        slots.map((s) => s.toJSON()),
-      );
-      return;
-    }
-
-    if (pathname === "/api/avatar" && req.method === "GET") {
-      await handleAvatarRequest(url, res);
-      return;
-    }
-
-    if (pathname === "/api/item-icon" && req.method === "GET") {
-      await handleItemIconRequest(url, res);
-      return;
-    }
-
-    const slotMatch = pathname.match(
-      /^\/api\/slots\/([1-4])(?:\/([a-z0-9\/-]+))?$/,
+    reply.raw.write(
+      `data: ${JSON.stringify(slots.map((s) => s.toJSON()))}\n\n`,
     );
-    if (slotMatch && slotMatch[1]) {
-      const slotId = parseInt(slotMatch[1], 10);
-      const action = slotMatch[2] || "";
-      const slot = slots.find((s) => s.id === slotId);
+    sseClients.add(reply);
 
-      if (!slot) {
-        sendJson(res, 404, { error: "Slot não encontrado" });
-        return;
-      }
+    req.raw.on("close", () => {
+      sseClients.delete(reply);
+    });
+  }
 
-      if (action === "" && req.method === "GET") {
-        sendJson(res, 200, slot.toJSON());
-        return;
-      }
+  app.get("/api/events", handleSse);
+  app.get("/api/v1/events", handleSse);
 
-      if (action === "login" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        if (!body.email || !body.password) {
-          sendJson(res, 400, { error: "E-mail e senha são obrigatórios." });
-          return;
+  // Favicon handler
+  const faviconPath = path.join(PUBLIC_DIR, "favicon.svg");
+  app.get("/favicon.ico", async (_req, reply) => {
+    if (fs.existsSync(faviconPath)) {
+      const data = fs.readFileSync(faviconPath);
+      return reply
+        .type("image/svg+xml")
+        .header("Cache-Control", "public, max-age=86400")
+        .send(data);
+    }
+    return reply.status(404).send("Not found");
+  });
+
+  // Assets endpoints
+  async function handleAvatar(req: FastifyRequest, reply: FastifyReply) {
+    const parsed = avatarQuerySchema.safeParse(req.query);
+    const query = parsed.success ? parsed.data : avatarQuerySchema.parse({});
+    const { buffer, contentType, cacheControl } = await fetchAvatar(query);
+    return reply
+      .type(contentType)
+      .header("Cache-Control", cacheControl)
+      .send(buffer);
+  }
+
+  app.get("/api/avatar", handleAvatar);
+  app.get("/api/v1/avatar", handleAvatar);
+
+  async function handleItemIcon(req: FastifyRequest, reply: FastifyReply) {
+    const parsed = itemIconQuerySchema.safeParse(req.query);
+    const query = parsed.success
+      ? parsed.data
+      : itemIconQuerySchema.parse({});
+    const { buffer, contentType, cacheControl } = await fetchItemIcon(query);
+    return reply
+      .type(contentType)
+      .header("Cache-Control", cacheControl)
+      .send(buffer);
+  }
+
+  app.get("/api/item-icon", handleItemIcon);
+  app.get("/api/v1/item-icon", handleItemIcon);
+
+  // Slots routes
+  function registerSlotRoutes(prefix: string) {
+    app.get(`${prefix}/slots`, async (_req, reply) => {
+      return reply.send(slots.map((s) => s.toJSON()));
+    });
+
+    const typedApp = app.withTypeProvider<ZodTypeProvider>();
+
+    typedApp.get(
+      `${prefix}/slots/:id`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
+        return reply.send(slot.toJSON());
+      },
+    );
+
+    typedApp.post(
+      `${prefix}/slots/:id/login`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            email: z.string().email(),
+            password: z.string().min(1),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
         }
         try {
-          await slot.login(body.email, body.password);
+          await slot.login(req.body.email, req.body.password);
           broadcastSSE();
-          sendJson(res, 200, slot.toJSON());
+          return reply.send(slot.toJSON());
         } catch (err) {
           broadcastSSE();
-          sendJson(res, 401, { error: (err as Error).message });
+          return reply.status(401).send({ error: (err as Error).message });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "logout" && req.method === "POST") {
+    typedApp.post(
+      `${prefix}/slots/:id/logout`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         await slot.disconnect();
         broadcastSSE();
-        sendJson(res, 200, slot.toJSON());
-        return;
-      }
+        return reply.send(slot.toJSON());
+      },
+    );
 
-      if (action === "catalog" && req.method === "GET") {
-        sendJson(res, 200, { hunts: slot.catalog });
-        return;
-      }
+    typedApp.get(
+      `${prefix}/slots/:id/catalog`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
+        return reply.send({ hunts: slot.catalog });
+      },
+    );
 
-      if (action === "hunt/start" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        if (!body.huntId) {
-          sendJson(res, 400, { error: "huntId é obrigatório" });
-          return;
+    typedApp.post(
+      `${prefix}/slots/:id/hunt/start`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            huntId: z.string().min(1),
+            tier: z.coerce.number().optional().default(0),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
         }
         try {
-          await slot.startHunt(body.huntId, body.tier ?? 0);
+          await slot.startHunt(req.body.huntId, req.body.tier);
           broadcastSSE();
-          sendJson(res, 200, slot.toJSON());
+          return reply.send(slot.toJSON());
         } catch (err) {
-          sendJson(res, 400, { error: (err as Error).message });
+          return reply.status(400).send({ error: (err as Error).message });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "hunt/leave" && req.method === "POST") {
+    typedApp.post(
+      `${prefix}/slots/:id/hunt/leave`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         try {
           await slot.leaveHunt();
           broadcastSSE();
-          sendJson(res, 200, slot.toJSON());
+          return reply.send(slot.toJSON());
         } catch (err) {
-          sendJson(res, 400, { error: (err as Error).message });
+          return reply.status(400).send({ error: (err as Error).message });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "price-mode" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        if (body.mode) {
-          slot.session.setPriceMode(body.mode);
-          broadcastSSE();
-          sendJson(res, 200, slot.toJSON());
-          return;
+    typedApp.post(
+      `${prefix}/slots/:id/price-mode`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            mode: z.enum(["npc", "auction", "custom"]),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
         }
-        sendJson(res, 400, {
-          error: "mode é obrigatório ('npc', 'auction', 'custom')",
-        });
-        return;
-      }
+        slot.session.setPriceMode(req.body.mode);
+        broadcastSSE();
+        return reply.send(slot.toJSON());
+      },
+    );
 
-      if (action === "item-price" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        if (body.itemId !== undefined && body.price !== undefined) {
-          slot.session.setCustomPrice(body.itemId, body.price);
-          broadcastSSE();
-          sendJson(res, 200, slot.toJSON());
-          return;
+    typedApp.post(
+      `${prefix}/slots/:id/item-price`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            itemId: z.coerce.number(),
+            price: z.coerce.number().min(0),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
         }
-        sendJson(res, 400, { error: "itemId e price são obrigatórios" });
-        return;
-      }
+        slot.session.setCustomPrice(req.body.itemId, req.body.price);
+        broadcastSSE();
+        return reply.send(slot.toJSON());
+      },
+    );
 
-      if (action === "action-bar/slot" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        if (body.slot === undefined) {
-          sendJson(res, 400, { error: "slot (0-19) é obrigatório" });
-          return;
+    typedApp.post(
+      `${prefix}/slots/:id/action-bar/slot`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            slot: z.coerce.number().min(0).max(19),
+            rule: z.any().optional(),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
         }
-        const slotIndex = Number(body.slot);
-        if (slotIndex < 0 || slotIndex >= 20) {
-          sendJson(res, 400, { error: "slot deve estar entre 0 e 19" });
-          return;
-        }
-
+        const slotIndex = req.body.slot;
         if (slot.socket && slot.socket.isOpen()) {
           try {
             slot.socket.send({
               type: "set-action-slot",
               slot: slotIndex,
-              rule: body.rule ?? null,
+              rule: req.body.rule ?? null,
             });
           } catch (err) {
-            sendJson(res, 500, {
+            return reply.status(500).send({
               error:
                 "Erro ao enviar ao WebSocket: " + (err as Error).message,
             });
-            return;
           }
         }
-
-        slot.session.setLocalActionSlot(slotIndex, body.rule ?? null);
+        slot.session.setLocalActionSlot(slotIndex, req.body.rule ?? null);
         broadcastSSE();
-        sendJson(res, 200, slot.toJSON());
-        return;
-      }
+        return reply.send(slot.toJSON());
+      },
+    );
 
-      if (action === "action-bar/preset" && req.method === "POST") {
-        const body = await parseJsonBody(req);
+    typedApp.post(
+      `${prefix}/slots/:id/action-bar/preset`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            action: z.enum(["select", "save"]),
+            index: z.coerce.number().optional(),
+            name: z.string().optional(),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         if (slot.socket && slot.socket.isOpen()) {
           try {
-            if (body.action === "select" && typeof body.index === "number") {
+            if (req.body.action === "select" && typeof req.body.index === "number") {
               slot.socket.send({
                 type: "select-action-bar-preset",
-                index: body.index,
+                index: req.body.index,
               });
-            } else if (body.action === "save" && body.name) {
+            } else if (req.body.action === "save" && req.body.name) {
               slot.socket.send({
                 type: "save-action-bar-preset",
-                name: body.name,
+                name: req.body.name,
               });
             }
           } catch (err) {
-            sendJson(res, 500, {
+            return reply.status(500).send({
               error:
                 "Erro ao enviar ao WebSocket: " + (err as Error).message,
             });
-            return;
           }
         }
         broadcastSSE();
-        sendJson(res, 200, slot.toJSON());
-        return;
-      }
+        return reply.send(slot.toJSON());
+      },
+    );
 
-      if (action === "party/invite" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        if (!body.name) {
-          sendJson(res, 400, { error: "Nome do jogador é obrigatório" });
-          return;
+    typedApp.post(
+      `${prefix}/slots/:id/party/invite`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            name: z.string().min(1),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
         }
 
-        const targetName = String(body.name).trim();
-
-        // Se o slot atual está em uma party mas não é o líder dela,
-        // verifica se o líder dessa party está logado em outro slot do Idlex
+        const targetName = req.body.name.trim();
         let effectiveSlot = slot;
         const currentParty = slot.session.party;
-        if (currentParty && currentParty.leaderId !== null && currentParty.leaderId !== undefined) {
+        if (
+          currentParty &&
+          currentParty.leaderId !== null &&
+          currentParty.leaderId !== undefined
+        ) {
           const leaderMember = currentParty.members?.find((m) => m.isLeader);
           const isCurrentSlotLeader =
             currentParty.leaderId === slot.session.gamePlayerId ||
             currentParty.leaderId === slot.character?.id ||
-            Boolean(leaderMember && slot.character?.name && leaderMember.name.toLowerCase() === slot.character.name.toLowerCase());
+            Boolean(
+              leaderMember &&
+                slot.character?.name &&
+                leaderMember.name.toLowerCase() ===
+                  slot.character.name.toLowerCase(),
+            );
 
           if (!isCurrentSlotLeader) {
             const leaderLocalSlot = slots.find((s) => {
               if (s.status !== "connected" && s.status !== "hunting") return false;
-              if (s.session.gamePlayerId && s.session.gamePlayerId === currentParty.leaderId) return true;
-              if (leaderMember && s.character?.name && leaderMember.name.toLowerCase() === s.character.name.toLowerCase()) return true;
+              if (
+                s.session.gamePlayerId &&
+                s.session.gamePlayerId === currentParty.leaderId
+              )
+                return true;
+              if (
+                leaderMember &&
+                s.character?.name &&
+                leaderMember.name.toLowerCase() === s.character.name.toLowerCase()
+              )
+                return true;
               return false;
             });
             if (leaderLocalSlot && leaderLocalSlot.socket?.isOpen()) {
               effectiveSlot = leaderLocalSlot;
-              console.log(
-                `[Server] Redirecionando convite de party para o líder oficial (Slot ${leaderLocalSlot.id}: ${leaderLocalSlot.character?.name})`
-              );
             }
           }
         }
 
         if (!effectiveSlot.socket || !effectiveSlot.socket.isOpen()) {
-          sendJson(res, 400, { error: "Personagem não conectado" });
-          return;
+          return reply.status(400).send({ error: "Personagem não conectado" });
         }
+
         try {
           effectiveSlot.socket.send({
             type: "party-invite-name",
             name: targetName,
           });
           broadcastSSE();
-          sendJson(res, 200, {
+          return reply.send({
             success: true,
             message: `Convite enviado para ${targetName}`,
             fromSlot: effectiveSlot.id,
           });
         } catch (err) {
-          sendJson(res, 500, {
+          return reply.status(500).send({
             error: "Erro ao enviar convite: " + (err as Error).message,
           });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "party/respond" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        const accept = Boolean(body.accept);
-        const followLeader = Boolean(body.followLeader);
+    typedApp.post(
+      `${prefix}/slots/:id/party/respond`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            accept: z.boolean(),
+            followLeader: z.boolean().optional(),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         if (!slot.socket || !slot.socket.isOpen()) {
-          sendJson(res, 400, { error: "Personagem não conectado" });
-          return;
+          return reply.status(400).send({ error: "Personagem não conectado" });
         }
         try {
-          const msg: any = { type: "party-respond", accept };
-          if (followLeader) {
+          const msg: any = { type: "party-respond", accept: req.body.accept };
+          if (req.body.followLeader) {
             msg.followLeader = true;
           }
           slot.socket.send(msg);
           slot.session.partyInvite = null;
           broadcastSSE();
-          sendJson(res, 200, { success: true, accept });
+          return reply.send({ success: true, accept: req.body.accept });
         } catch (err) {
-          sendJson(res, 500, {
+          return reply.status(500).send({
             error: "Erro ao responder convite: " + (err as Error).message,
           });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "party/leave" && req.method === "POST") {
+    typedApp.post(
+      `${prefix}/slots/:id/party/leave`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         if (!slot.socket || !slot.socket.isOpen()) {
-          sendJson(res, 400, { error: "Personagem não conectado" });
-          return;
+          return reply.status(400).send({ error: "Personagem não conectado" });
         }
         try {
           slot.socket.send({ type: "party-leave" });
           slot.session.party = null;
           broadcastSSE();
-          sendJson(res, 200, { success: true });
+          return reply.send({ success: true });
         } catch (err) {
-          sendJson(res, 500, {
+          return reply.status(500).send({
             error: "Erro ao sair da party: " + (err as Error).message,
           });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "party/follow-leader" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        const follow = Boolean(body.follow);
+    typedApp.post(
+      `${prefix}/slots/:id/party/follow-leader`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            follow: z.boolean(),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         if (!slot.socket || !slot.socket.isOpen()) {
-          sendJson(res, 400, { error: "Personagem não conectado" });
-          return;
+          return reply.status(400).send({ error: "Personagem não conectado" });
         }
         try {
-          slot.socket.send({ type: "party-follow-leader", follow });
+          slot.socket.send({ type: "party-follow-leader", follow: req.body.follow });
           broadcastSSE();
-          sendJson(res, 200, { success: true, follow });
+          return reply.send({ success: true, follow: req.body.follow });
         } catch (err) {
-          sendJson(res, 500, {
-            error: "Erro ao alternar seguir líder: " + (err as Error).message,
+          return reply.status(500).send({
+            error:
+              "Erro ao alternar seguir líder: " + (err as Error).message,
           });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "party/kick" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        if (!body.playerId && !body.id) {
-          sendJson(res, 400, { error: "ID do jogador é obrigatório" });
-          return;
+    typedApp.post(
+      `${prefix}/slots/:id/party/kick`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            playerId: z.coerce.number().optional(),
+            id: z.coerce.number().optional(),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
         }
+        const playerId = req.body.playerId || req.body.id;
+        if (!playerId) {
+          return reply.status(400).send({ error: "ID do jogador é obrigatório" });
+        }
+
         let effectiveSlot = slot;
         const currentParty = slot.session.party;
-        if (currentParty && currentParty.leaderId !== null && currentParty.leaderId !== undefined) {
+        if (
+          currentParty &&
+          currentParty.leaderId !== null &&
+          currentParty.leaderId !== undefined
+        ) {
           const leaderMember = currentParty.members?.find((m) => m.isLeader);
           const isCurrentSlotLeader =
             currentParty.leaderId === slot.session.gamePlayerId ||
             currentParty.leaderId === slot.character?.id ||
-            Boolean(leaderMember && slot.character?.name && leaderMember.name.toLowerCase() === slot.character.name.toLowerCase());
+            Boolean(
+              leaderMember &&
+                slot.character?.name &&
+                leaderMember.name.toLowerCase() ===
+                  slot.character.name.toLowerCase(),
+            );
 
           if (!isCurrentSlotLeader) {
             const leaderLocalSlot = slots.find((s) => {
               if (s.status !== "connected" && s.status !== "hunting") return false;
-              if (s.session.gamePlayerId && s.session.gamePlayerId === currentParty.leaderId) return true;
-              if (leaderMember && s.character?.name && leaderMember.name.toLowerCase() === s.character.name.toLowerCase()) return true;
+              if (
+                s.session.gamePlayerId &&
+                s.session.gamePlayerId === currentParty.leaderId
+              )
+                return true;
+              if (
+                leaderMember &&
+                s.character?.name &&
+                leaderMember.name.toLowerCase() === s.character.name.toLowerCase()
+              )
+                return true;
               return false;
             });
             if (leaderLocalSlot && leaderLocalSlot.socket?.isOpen()) {
@@ -470,222 +729,314 @@ export function createServerApp() {
             }
           }
         }
+
         if (!effectiveSlot.socket || !effectiveSlot.socket.isOpen()) {
-          sendJson(res, 400, { error: "Personagem não conectado" });
-          return;
+          return reply.status(400).send({ error: "Personagem não conectado" });
         }
+
         try {
           effectiveSlot.socket.send({
             type: "party-kick",
-            playerId: Number(body.playerId || body.id),
+            playerId,
           });
           broadcastSSE();
-          sendJson(res, 200, { success: true });
+          return reply.send({ success: true });
         } catch (err) {
-          sendJson(res, 500, {
+          return reply.status(500).send({
             error: "Erro ao expulsar membro: " + (err as Error).message,
           });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "party/costs-offer" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        const enabled = Boolean(body.enabled);
+    typedApp.post(
+      `${prefix}/slots/:id/party/costs-offer`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            enabled: z.boolean(),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         if (!slot.socket || !slot.socket.isOpen()) {
-          sendJson(res, 400, { error: "Personagem não conectado" });
-          return;
+          return reply.status(400).send({ error: "Personagem não conectado" });
         }
         const party = slot.session.party;
         if (!party) {
-          sendJson(res, 400, {
+          return reply.status(400).send({
             error: "Este personagem não está em nenhuma party.",
           });
-          return;
         }
         const leaderMember = party.members.find((m) => m.isLeader);
         const isLeader =
           party.leaderId === slot.session.gamePlayerId ||
           party.leaderId === slot.character?.id ||
-          Boolean(leaderMember && slot.character?.name && leaderMember.name.toLowerCase() === slot.character.name.toLowerCase());
+          Boolean(
+            leaderMember &&
+              slot.character?.name &&
+              leaderMember.name.toLowerCase() === slot.character.name.toLowerCase(),
+          );
 
         if (!isLeader) {
-          sendJson(res, 403, {
+          return reply.status(403).send({
             error:
               "Apenas o líder do grupo pode alterar as configurações de custos da party.",
           });
-          return;
         }
+
         try {
-          if (enabled) {
+          if (req.body.enabled) {
             slot.socket.send({ type: "party-costs-offer", enabled: true });
           } else {
             slot.socket.send({ type: "party-costs-cancel" });
             slot.socket.send({ type: "party-costs-offer", enabled: false });
           }
           broadcastSSE();
-          sendJson(res, 200, { success: true, enabled });
+          return reply.send({ success: true, enabled: req.body.enabled });
         } catch (err) {
-          sendJson(res, 500, {
+          return reply.status(500).send({
             error:
               "Erro ao alterar custos compartilhados: " +
               (err as Error).message,
           });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "party/costs-respond" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        const accept = Boolean(body.accept);
+    typedApp.post(
+      `${prefix}/slots/:id/party/costs-respond`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            accept: z.boolean(),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         if (!slot.socket || !slot.socket.isOpen()) {
-          sendJson(res, 400, { error: "Personagem não conectado" });
-          return;
+          return reply.status(400).send({ error: "Personagem não conectado" });
         }
         try {
-          slot.socket.send({ type: "party-costs-respond", accept });
+          slot.socket.send({ type: "party-costs-respond", accept: req.body.accept });
           broadcastSSE();
-          sendJson(res, 200, { success: true, accept });
+          return reply.send({ success: true, accept: req.body.accept });
         } catch (err) {
-          sendJson(res, 500, {
+          return reply.status(500).send({
             error:
-              "Erro ao responder proposta de custos: " +
-              (err as Error).message,
+              "Erro ao responder proposta de custos: " + (err as Error).message,
           });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "party/costs-cancel" && req.method === "POST") {
+    typedApp.post(
+      `${prefix}/slots/:id/party/costs-cancel`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         if (!slot.socket || !slot.socket.isOpen()) {
-          sendJson(res, 400, { error: "Personagem não conectado" });
-          return;
+          return reply.status(400).send({ error: "Personagem não conectado" });
         }
         try {
           slot.socket.send({ type: "party-costs-cancel" });
           broadcastSSE();
-          sendJson(res, 200, { success: true });
+          return reply.send({ success: true });
         } catch (err) {
-          sendJson(res, 500, {
+          return reply.status(500).send({
             error:
               "Erro ao cancelar custos compartilhados: " +
               (err as Error).message,
           });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "party/transfer-respond" && req.method === "POST") {
-        const body = await parseJsonBody(req);
-        const accept = Boolean(body.accept);
-        const fromName = body.fromName || slot.session.transferOffer?.fromName;
+    typedApp.post(
+      `${prefix}/slots/:id/party/transfer-respond`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            accept: z.boolean(),
+            fromName: z.string().optional(),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
+        const fromName = req.body.fromName || slot.session.transferOffer?.fromName;
         if (!slot.socket || !slot.socket.isOpen()) {
-          sendJson(res, 400, { error: "Personagem não conectado" });
-          return;
+          return reply.status(400).send({ error: "Personagem não conectado" });
         }
         try {
-          slot.socket.send({ type: "transfer-respond", fromName, accept });
+          slot.socket.send({
+            type: "transfer-respond",
+            fromName,
+            accept: req.body.accept,
+          });
           slot.session.transferOffer = null;
           broadcastSSE();
-          sendJson(res, 200, { success: true, accept });
+          return reply.send({ success: true, accept: req.body.accept });
         } catch (err) {
-          sendJson(res, 500, {
+          return reply.status(500).send({
             error:
               "Erro ao responder transferência de mundo: " +
               (err as Error).message,
           });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "revive" && req.method === "POST") {
+    typedApp.post(
+      `${prefix}/slots/:id/revive`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         try {
           await slot.revive();
           broadcastSSE();
-          sendJson(res, 200, slot.toJSON());
+          return reply.send(slot.toJSON());
         } catch (err) {
-          sendJson(res, 400, { error: (err as Error).message });
+          return reply.status(400).send({ error: (err as Error).message });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "death/dismiss" && req.method === "POST") {
+    typedApp.post(
+      `${prefix}/slots/:id/death/dismiss`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         try {
           await slot.dismissDeath();
           broadcastSSE();
-          sendJson(res, 200, slot.toJSON());
+          return reply.send(slot.toJSON());
         } catch (err) {
-          sendJson(res, 400, { error: (err as Error).message });
+          return reply.status(400).send({ error: (err as Error).message });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "blessings/buy" && req.method === "POST") {
-        const body = await parseJsonBody(req);
+    typedApp.post(
+      `${prefix}/slots/:id/blessings/buy`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            id: z.string().optional().default("all"),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         try {
-          await slot.buyBlessing(body.id || "all");
+          await slot.buyBlessing(req.body.id);
           broadcastSSE();
-          sendJson(res, 200, slot.toJSON());
+          return reply.send(slot.toJSON());
         } catch (err) {
-          sendJson(res, 400, { error: (err as Error).message });
+          return reply.status(400).send({ error: (err as Error).message });
         }
-        return;
-      }
+      },
+    );
 
-      if (action === "blessings/open" && req.method === "POST") {
+    typedApp.post(
+      `${prefix}/slots/:id/blessings/open`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
         try {
           await slot.openBlessings();
           broadcastSSE();
-          sendJson(res, 200, slot.toJSON());
+          return reply.send(slot.toJSON());
         } catch (err) {
-          sendJson(res, 400, { error: (err as Error).message });
+          return reply.status(400).send({ error: (err as Error).message });
         }
-        return;
-      }
-    }
-
-    // Static Files
-    let filePath = path.join(
-      PUBLIC_DIR,
-      pathname === "/" ? "index.html" : pathname,
+      },
     );
+  }
 
-    if (!filePath.startsWith(PUBLIC_DIR)) {
-      res.writeHead(403);
-      res.end("Acesso negado");
-      return;
-    }
+  registerSlotRoutes("/api");
+  registerSlotRoutes("/api/v1");
 
-    fs.stat(filePath, (err, stats) => {
-      if (err || !stats.isFile()) {
-        filePath = path.join(PUBLIC_DIR, "index.html");
-      }
+  // Static files serving for public/
+  await app.register(fastifyStatic, {
+    root: PUBLIC_DIR,
+    prefix: "/",
+    wildcard: false,
+  });
 
-      const ext = path.extname(filePath).toLowerCase();
-      const contentType = MIME_TYPES[ext] || "application/octet-stream";
-
-      fs.readFile(filePath, (readErr, content) => {
-        if (readErr) {
-          res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-          res.end("Arquivo não encontrado");
-          return;
-        }
-        res.writeHead(200, { "Content-Type": contentType });
-        res.end(content);
+  // SPA fallback to index.html for non-API routes
+  app.setNotFoundHandler(async (req, reply) => {
+    if (req.url.startsWith("/api/")) {
+      return reply.status(404).send({
+        error: "Rota da API não encontrada",
+        code: "NOT_FOUND",
+        requestId: req.id,
+        statusCode: 404,
       });
-    });
+    }
+    const indexHtml = path.join(PUBLIC_DIR, "index.html");
+    if (fs.existsSync(indexHtml)) {
+      return reply.type("text/html; charset=utf-8").send(fs.readFileSync(indexHtml));
+    }
+    return reply.status(404).send("Not found");
   });
 
   async function shutdown(): Promise<void> {
     clearInterval(sseInterval);
-    console.log("\n⏹  Encerrando servidor e desconectando slots...");
+    app.log.info("Encerrando servidor e desconectando slots...");
     for (const slot of slots) {
       await slot.disconnect();
     }
-    return new Promise((resolve) => {
-      server.close(() => resolve());
-    });
+    await app.close();
+    await closeDatabasePool();
+    await closeRedisClient();
   }
 
-  return { server, slots, shutdown };
+  return { app, slots, broadcastSSE, shutdown };
 }

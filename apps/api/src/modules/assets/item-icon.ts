@@ -1,4 +1,5 @@
-import type { ServerResponse } from "node:http";
+import { LRUCache } from "lru-cache";
+import { z } from "zod";
 
 export const ITEM_ID_TO_SLUG: Record<number, string> = {
   3031: "gold_coin",
@@ -77,19 +78,29 @@ export function sanitizeItemName(rawName: string | null | undefined): string {
   return s.trim();
 }
 
+export const itemIconQuerySchema = z.object({
+  id: z.coerce.number().int().min(0).max(100000).optional().default(0),
+  name: z.string().max(64).optional().default(""),
+});
+
+export type ItemIconQuery = z.infer<typeof itemIconQuerySchema>;
+
 interface CachedIcon {
   buffer: Buffer;
   contentType: string;
 }
 
-const itemIconCache = new Map<string, CachedIcon>();
+const itemIconCache = new LRUCache<string, CachedIcon>({
+  max: 2000,
+  maxSize: 50 * 1024 * 1024, // 50 MB
+  sizeCalculation: (val) => val.buffer.length,
+});
 
-export async function handleItemIconRequest(
-  url: URL,
-  res: ServerResponse,
-): Promise<void> {
-  const rawName = url.searchParams.get("name") || "";
-  const rawId = parseInt(url.searchParams.get("id") || "0", 10);
+export async function fetchItemIcon(
+  query: ItemIconQuery,
+): Promise<{ buffer: Buffer; contentType: string; cacheControl: string }> {
+  const rawName = query.name || "";
+  const rawId = query.id || 0;
   const sanitized = sanitizeItemName(rawName);
 
   const slug =
@@ -101,22 +112,20 @@ export async function handleItemIconRequest(
           .replace(/^_+|_+$/g, "");
 
   if (!slug) {
-    res.writeHead(200, {
-      "Content-Type": "image/svg+xml",
-      "Cache-Control": "public, max-age=86400",
-    });
-    res.end(generateItemFallbackSvg("?", rawId));
-    return;
+    return {
+      buffer: Buffer.from(generateItemFallbackSvg("?", rawId)),
+      contentType: "image/svg+xml",
+      cacheControl: "public, max-age=86400",
+    };
   }
 
   if (itemIconCache.has(slug)) {
     const cached = itemIconCache.get(slug)!;
-    res.writeHead(200, {
-      "Content-Type": cached.contentType,
-      "Cache-Control": "public, max-age=604800",
-    });
-    res.end(cached.buffer);
-    return;
+    return {
+      buffer: cached.buffer,
+      contentType: cached.contentType,
+      cacheControl: "public, max-age=604800, immutable",
+    };
   }
 
   const remoteUrl = `https://tibiopedia.pl/images/static/items/${slug}.gif`;
@@ -134,12 +143,11 @@ export async function handleItemIconRequest(
         const buffer = Buffer.from(arrayBuffer);
         itemIconCache.set(slug, { buffer, contentType });
 
-        res.writeHead(200, {
-          "Content-Type": contentType,
-          "Cache-Control": "public, max-age=604800",
-        });
-        res.end(buffer);
-        return;
+        return {
+          buffer,
+          contentType,
+          cacheControl: "public, max-age=604800, immutable",
+        };
       }
     }
   } catch {}
@@ -148,11 +156,11 @@ export async function handleItemIconRequest(
   const svgBuffer = Buffer.from(svg);
   itemIconCache.set(slug, { buffer: svgBuffer, contentType: "image/svg+xml" });
 
-  res.writeHead(200, {
-    "Content-Type": "image/svg+xml",
-    "Cache-Control": "public, max-age=86400",
-  });
-  res.end(svgBuffer);
+  return {
+    buffer: svgBuffer,
+    contentType: "image/svg+xml",
+    cacheControl: "public, max-age=86400",
+  };
 }
 
 export function generateItemFallbackSvg(
