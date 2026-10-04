@@ -335,5 +335,6 @@
     "freeUntilLevel": 80,
     "lossReductionPercent": 40,
     "equipmentLossPercent": 0
-  }
+  },
+  "gamePlayerId": 232074
 }

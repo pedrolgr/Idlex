@@ -643,6 +643,11 @@ export class HuntSession {
       case "action-bar-update":
         handleActionBarUpdate(this, message as any);
         break;
+      case "welcome":
+        if (typeof (message as any).playerId === "number") {
+          this.gamePlayerId = (message as any).playerId;
+        }
+        break;
       case "action-bar-presets":
         handleActionBarPresets(this, message as any);
         break;
@@ -916,6 +921,7 @@ export class HuntSession {
       transferOffer: this.transferOffer,
       deathInfo: { ...this.deathInfo },
       blessings: { ...this.blessings },
+      gamePlayerId: this.gamePlayerId,
     };
   }
 }

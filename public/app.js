@@ -2029,11 +2029,20 @@ function getGlobalPartyInfo() {
   }
 
   // 2. Se há uma party ativa, localiza se o líder está logado em algum dos slots da aplicação
-  if (primaryParty && primaryParty.leaderId !== null) {
-    leaderSlot = state.slots.find((s) =>
-      s.character?.id === primaryParty.leaderId &&
-      (s.status === 'connected' || s.status === 'hunting')
-    ) || null;
+  if (primaryParty && primaryParty.leaderId !== null && primaryParty.leaderId !== undefined) {
+    const leaderMember = primaryParty.members?.find((m) => m.isLeader || m.id === primaryParty.leaderId);
+    const leaderName = leaderMember?.name?.toLowerCase();
+
+    leaderSlot = state.slots.find((s) => {
+      if (s.status !== 'connected' && s.status !== 'hunting') return false;
+      // 1. Por gamePlayerId
+      if (s.session?.gamePlayerId && s.session.gamePlayerId === primaryParty.leaderId) return true;
+      // 2. Por nome do personagem (case-insensitive) - garantia absoluta!
+      if (leaderName && s.character?.name && s.character.name.toLowerCase() === leaderName) return true;
+      // 3. Por character.id
+      if (s.character?.id && s.character.id === primaryParty.leaderId) return true;
+      return false;
+    }) || null;
   }
 
   // Se o líder não estiver logado, encontra algum slot qualquer conectado na party como fallback de visualização
@@ -2221,22 +2230,30 @@ function renderPartyModalContent() {
       `;
     } else {
       friendsListEl.innerHTML = friends.map((f) => {
-        const isOnline = Boolean(f.online);
+        const localSlot = state.slots.find((s) =>
+          s.character?.name &&
+          s.character.name.toLowerCase() === f.name.toLowerCase() &&
+          (s.status === 'connected' || s.status === 'hunting')
+        );
+        const isOnline = Boolean(f.online) || Boolean(localSlot);
         const vocIcon = VOCATION_ICONS[f.vocation?.toLowerCase()] || '⚔️';
         const vocLabel = f.vocation ? formatVocation(f.vocation) : 'Aventureiro';
         const lvlLabel = f.level ? `Nv. ${f.level}` : '';
         const inCurrentParty = party?.members?.some((m) => m.name.toLowerCase() === f.name.toLowerCase());
 
         return `
-          <div class="friend-card">
+          <div class="friend-card ${localSlot ? 'is-local-friend' : ''}">
             <div class="friend-info-left">
               <span class="friend-status-dot ${isOnline ? 'online' : ''}" title="${isOnline ? 'Online' : 'Offline'}"></span>
               <div class="friend-details-box">
-                <span class="friend-name-text">${f.name}</span>
+                <span class="friend-name-text">
+                  ${f.name}
+                  ${localSlot ? `<span class="party-slot-tag" title="Conectado no Slot ${localSlot.id} do Idlex">Slot ${localSlot.id}</span>` : ''}
+                </span>
                 <span class="friend-meta-text">
                   <span>${vocIcon} ${vocLabel}</span>
                   ${lvlLabel ? `<span>• ${lvlLabel}</span>` : ''}
-                  <span style="color: ${isOnline ? 'var(--emerald)' : 'var(--text-muted)'};">• ${isOnline ? 'Online' : 'Offline'}</span>
+                  <span style="color: ${isOnline ? 'var(--emerald)' : 'var(--text-muted)'};">• ${isOnline ? 'Online' : 'Offline'}${localSlot ? ' (Idlex)' : ''}</span>
                 </span>
               </div>
             </div>
@@ -2244,7 +2261,7 @@ function renderPartyModalContent() {
               ${inCurrentParty ? `
                 <span style="font-size: 11px; color: var(--emerald); font-weight: 600; padding: 4px 8px;">Na Party ✓</span>
               ` : `
-                <button type="button" class="btn-friend-invite" onclick="invitePlayerToParty(${effectiveSlotId}, '${f.name}')" title="Convidar ${f.name} como líder">
+                <button type="button" class="btn-friend-invite" onclick="invitePlayerToParty(${effectiveSlotId}, '${f.name}')" title="Convidar ${f.name} para o grupo">
                   ➕ Convidar
                 </button>
               `}
@@ -2503,7 +2520,11 @@ window.submitCustomPartyInvite = async function () {
 
 window.invitePlayerToParty = async function (slotId, playerName) {
   try {
-    const resp = await fetch(`/api/slots/${slotId}/party/invite`, {
+    const { leaderSlot, displaySlot } = getGlobalPartyInfo();
+    const effectiveSlot = leaderSlot || (slotId ? state.slots[slotId - 1] : displaySlot) || state.slots.find((s) => s.status === 'connected' || s.status === 'hunting') || state.slots[0];
+    const targetSlotId = effectiveSlot?.id || slotId || 1;
+
+    const resp = await fetch(`/api/slots/${targetSlotId}/party/invite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: playerName }),
@@ -2638,6 +2659,7 @@ window.respondToTransferOffer = async function (slotId, accept) {
       s.session.transferOffer = null;
       renderSlot(s);
     }
+    showPartyToastFeedback(accept ? 'Transferência aceita! Conectando ao mundo da party...' : 'Transferência de mundo recusada.');
   } catch (err) {
     console.error('Erro ao responder transferência:', err);
     alert('Erro de conexão ao responder convite de transferência.');

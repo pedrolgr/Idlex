@@ -59,6 +59,7 @@ export class Slot {
   catalog: CatalogHunt[] = [];
   catalogLoaded = false;
   accountPassword: string | null = null;
+  reconnecting = false;
   onBroadcast?: () => void;
 
   constructor(id: number, onBroadcast?: () => void) {
@@ -69,6 +70,11 @@ export class Slot {
   setupSocketEvents(socket: GameSocket): void {
     socket.onMessage((msg: IncomingGameMessage) => {
       this.session.handleMessage(msg);
+
+      if (msg.type === "welcome" && typeof (msg as any).playerId === "number") {
+        this.session.gamePlayerId = (msg as any).playerId;
+        this.onBroadcast?.();
+      }
 
       if (msg.type === "hunt-catalog" && Array.isArray((msg as any).hunts)) {
         this.catalog = (msg as any).hunts;
@@ -162,8 +168,15 @@ export class Slot {
 
     socket.onClose((event) => {
       console.warn(
-        `[Slot ${this.id}] Conexão WebSocket encerrada pelo servidor (código: ${event?.code || "desconhecido"}).`,
+        `[Slot ${this.id}] Conexão WebSocket encerrada pelo servidor (código: ${event?.code || "desconhecido"}, motivo: ${event?.reason || "nenhum"}).`,
       );
+      if (this.socket === socket) {
+        this.socket = null;
+      }
+      if (this.status !== "idle" && this.character && !this.reconnecting) {
+        const isTransfer = event?.code === 4003 || event?.reason === "transfer";
+        void this.handleAutoReconnect(isTransfer);
+      }
     });
 
     socket.onError((err) => {
@@ -172,6 +185,58 @@ export class Slot {
         (err as Error)?.message || err,
       );
     });
+  }
+
+  async handleAutoReconnect(isTransfer: boolean): Promise<void> {
+    if (this.reconnecting || this.status === "idle" || !this.character) return;
+    this.reconnecting = true;
+    console.log(
+      `[Slot ${this.id}] Auto-reconexão iniciada (${isTransfer ? "transferência de mundo" : "queda inesperada"})...`
+    );
+
+    const prevHuntActive = this.session.huntActive;
+    const prevHuntId = this.session.huntId;
+    const prevTier = this.session.tier;
+
+    if (isTransfer) {
+      await sleep(1000);
+    }
+
+    let attempts = 0;
+    const maxAttempts = 6;
+    while (attempts < maxAttempts && (this.status as SlotStatus) !== "idle") {
+      attempts++;
+      try {
+        console.log(`[Slot ${this.id}] Tentativa de reconexão ${attempts}/${maxAttempts}...`);
+        await this.ensureSocket();
+        this.reconnecting = false;
+
+        if (prevHuntActive && prevHuntId && this.socket && this.socket.isOpen()) {
+          try {
+            this.socket.send({ type: "start-hunt", huntId: prevHuntId, tier: prevTier });
+            this.status = "hunting";
+          } catch {}
+        } else {
+          this.status = "connected";
+        }
+
+        console.log(`[Slot ${this.id}] Reconectado com sucesso após fechamento!`);
+        this.onBroadcast?.();
+        return;
+      } catch (err) {
+        console.warn(
+          `[Slot ${this.id}] Falha na tentativa ${attempts} de reconexão: ${(err as Error).message}`
+        );
+        await sleep(isTransfer ? 1500 : 2500);
+      }
+    }
+
+    this.reconnecting = false;
+    if ((this.status as SlotStatus) !== "idle") {
+      this.status = "error";
+      this.errorMessage = "Conexão perdida com o servidor do jogo.";
+      this.onBroadcast?.();
+    }
   }
 
   async ensureSocket(): Promise<GameSocket> {
@@ -184,7 +249,7 @@ export class Slot {
         `[Slot ${this.id}] Reconectando socket para ${this.character.name}...`,
       );
       try {
-        const ticketResp = await this.client.gameTicket(this.character.id);
+        const ticketResp = await this.client.gameTicket(String(this.character.id));
         const socket = new GameSocket({
           url: ticketResp.websocketUrl,
           ticket: ticketResp.ticket,
@@ -211,7 +276,7 @@ export class Slot {
       );
       this.client = new HunteraClient();
       await this.client.login(this.account.email, this.accountPassword);
-      const ticketResp = await this.client.gameTicket(this.character.id);
+      const ticketResp = await this.client.gameTicket(String(this.character.id));
       const socket = new GameSocket({
         url: ticketResp.websocketUrl,
         ticket: ticketResp.ticket,
@@ -344,6 +409,7 @@ export class Slot {
   }
 
   async disconnect(reason: string | null = null): Promise<void> {
+    this.reconnecting = false;
     this.status = "idle";
     this.errorMessage = reason || null;
     this.accountPassword = null;

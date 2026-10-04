@@ -120,7 +120,7 @@ export class HunteraClient {
   async gameTicket(characterId: number | string): Promise<GameTicketResponse> {
     return this.request<GameTicketResponse>("/api/game-tickets", {
       method: "POST",
-      body: JSON.stringify({ characterId }),
+      body: JSON.stringify({ characterId: String(characterId) }),
     });
   }
 }

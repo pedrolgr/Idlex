@@ -50,6 +50,9 @@ export function handlePartyUpdate(
           m.name.toLowerCase() === session.playerName.toLowerCase()),
     );
     if (me) {
+      if (typeof me.id === "number") {
+        session.gamePlayerId = me.id;
+      }
       if (typeof me.healthPercent === "number" && session.playerState.maxHp) {
         session.playerState.hp = Math.round(
           (session.playerState.maxHp * me.healthPercent) / 100,

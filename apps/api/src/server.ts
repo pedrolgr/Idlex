@@ -328,19 +328,50 @@ export function createServerApp() {
           sendJson(res, 400, { error: "Nome do jogador é obrigatório" });
           return;
         }
-        if (!slot.socket || !slot.socket.isOpen()) {
+
+        const targetName = String(body.name).trim();
+
+        // Se o slot atual está em uma party mas não é o líder dela,
+        // verifica se o líder dessa party está logado em outro slot do Idlex
+        let effectiveSlot = slot;
+        const currentParty = slot.session.party;
+        if (currentParty && currentParty.leaderId !== null && currentParty.leaderId !== undefined) {
+          const leaderMember = currentParty.members?.find((m) => m.isLeader);
+          const isCurrentSlotLeader =
+            currentParty.leaderId === slot.session.gamePlayerId ||
+            currentParty.leaderId === slot.character?.id ||
+            Boolean(leaderMember && slot.character?.name && leaderMember.name.toLowerCase() === slot.character.name.toLowerCase());
+
+          if (!isCurrentSlotLeader) {
+            const leaderLocalSlot = slots.find((s) => {
+              if (s.status !== "connected" && s.status !== "hunting") return false;
+              if (s.session.gamePlayerId && s.session.gamePlayerId === currentParty.leaderId) return true;
+              if (leaderMember && s.character?.name && leaderMember.name.toLowerCase() === s.character.name.toLowerCase()) return true;
+              return false;
+            });
+            if (leaderLocalSlot && leaderLocalSlot.socket?.isOpen()) {
+              effectiveSlot = leaderLocalSlot;
+              console.log(
+                `[Server] Redirecionando convite de party para o líder oficial (Slot ${leaderLocalSlot.id}: ${leaderLocalSlot.character?.name})`
+              );
+            }
+          }
+        }
+
+        if (!effectiveSlot.socket || !effectiveSlot.socket.isOpen()) {
           sendJson(res, 400, { error: "Personagem não conectado" });
           return;
         }
         try {
-          slot.socket.send({
+          effectiveSlot.socket.send({
             type: "party-invite-name",
-            name: body.name.trim(),
+            name: targetName,
           });
           broadcastSSE();
           sendJson(res, 200, {
             success: true,
-            message: `Convite enviado para ${body.name}`,
+            message: `Convite enviado para ${targetName}`,
+            fromSlot: effectiveSlot.id,
           });
         } catch (err) {
           sendJson(res, 500, {
@@ -418,14 +449,35 @@ export function createServerApp() {
           sendJson(res, 400, { error: "ID do jogador é obrigatório" });
           return;
         }
-        if (!slot.socket || !slot.socket.isOpen()) {
+        let effectiveSlot = slot;
+        const currentParty = slot.session.party;
+        if (currentParty && currentParty.leaderId !== null && currentParty.leaderId !== undefined) {
+          const leaderMember = currentParty.members?.find((m) => m.isLeader);
+          const isCurrentSlotLeader =
+            currentParty.leaderId === slot.session.gamePlayerId ||
+            currentParty.leaderId === slot.character?.id ||
+            Boolean(leaderMember && slot.character?.name && leaderMember.name.toLowerCase() === slot.character.name.toLowerCase());
+
+          if (!isCurrentSlotLeader) {
+            const leaderLocalSlot = slots.find((s) => {
+              if (s.status !== "connected" && s.status !== "hunting") return false;
+              if (s.session.gamePlayerId && s.session.gamePlayerId === currentParty.leaderId) return true;
+              if (leaderMember && s.character?.name && leaderMember.name.toLowerCase() === s.character.name.toLowerCase()) return true;
+              return false;
+            });
+            if (leaderLocalSlot && leaderLocalSlot.socket?.isOpen()) {
+              effectiveSlot = leaderLocalSlot;
+            }
+          }
+        }
+        if (!effectiveSlot.socket || !effectiveSlot.socket.isOpen()) {
           sendJson(res, 400, { error: "Personagem não conectado" });
           return;
         }
         try {
-          slot.socket.send({
+          effectiveSlot.socket.send({
             type: "party-kick",
-            playerId: body.playerId || body.id,
+            playerId: Number(body.playerId || body.id),
           });
           broadcastSSE();
           sendJson(res, 200, { success: true });
@@ -451,7 +503,13 @@ export function createServerApp() {
           });
           return;
         }
-        if (party.leaderId !== slot.character?.id) {
+        const leaderMember = party.members.find((m) => m.isLeader);
+        const isLeader =
+          party.leaderId === slot.session.gamePlayerId ||
+          party.leaderId === slot.character?.id ||
+          Boolean(leaderMember && slot.character?.name && leaderMember.name.toLowerCase() === slot.character.name.toLowerCase());
+
+        if (!isLeader) {
           sendJson(res, 403, {
             error:
               "Apenas o líder do grupo pode alterar as configurações de custos da party.",

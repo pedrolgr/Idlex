@@ -208,4 +208,5 @@ export interface HuntSessionJSON {
   transferOffer: TransferOfferState | null;
   deathInfo: DeathInfo;
   blessings: BlessingsState;
+  gamePlayerId: number | null;
 }
