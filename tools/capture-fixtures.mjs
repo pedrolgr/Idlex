@@ -12,8 +12,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HunteraClient } from "../src/huntera-client.mjs";
-import { GameSocket } from "../src/game-socket.mjs";
+import { HunteraClient } from "@idlex/huntera-client";
+import { GameSocket } from "@idlex/protocol";
 import { sanitizeMessage, createAnonymizer } from "./lib/sanitize.mjs";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");

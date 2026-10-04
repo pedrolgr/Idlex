@@ -1,19 +1,27 @@
 {
-  "name": "huntera-direct-client",
+  "name": "idlex",
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@12.9.1",
   "scripts": {
-    "start": "node src/diagnose-hunts.mjs",
-    "diagnose": "node src/diagnose.mjs",
-    "diagnose:hunts": "node src/diagnose-hunts.mjs",
-    "creature:dump": "node src/creature-dump.mjs",
-    "server": "node src/server.mjs",
-    "web": "node src/server.mjs",
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
     "test": "node --test test/",
+    "test:watch": "node --test --watch test/",
     "capture": "node tools/capture-fixtures.mjs"
   },
-  "dependencies": {
-    "ws": "^8.22.0"
+  "devDependencies": {
+    "@idlex/game-core": "workspace:*",
+    "@idlex/huntera-client": "workspace:*",
+    "@idlex/protocol": "workspace:*",
+    "@types/node": "^22.13.4",
+    "@types/ws": "^8.5.14",
+    "tsx": "^4.19.3",
+    "tsup": "^8.3.6",
+    "turbo": "^2.4.4",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
   }
 }

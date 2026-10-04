@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { mock } from "node:test";
-import { HuntSession } from "../../src/hunt-session.mjs";
+import { HuntSession } from "@idlex/game-core";
 
 /** Instante fixo usado para tornar o replay determinístico. */
 export const FROZEN_NOW = 1_700_000_000_000;

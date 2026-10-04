@@ -11,8 +11,8 @@
 
 import "node:process";
 import fs from "node:fs";
-import { HunteraClient } from "./huntera-client.mjs";
-import { GameSocket } from "./game-socket.mjs";
+import { HunteraClient } from "@idlex/huntera-client";
+import { GameSocket } from "@idlex/protocol";
 
 loadDotEnv();
 

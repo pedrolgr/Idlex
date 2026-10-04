@@ -1,11 +1,17 @@
-import "node:process";
 import fs from "node:fs";
-import readline from "node:readline/promises";
+import path from "node:path";
 import readlineCb from "node:readline";
-import { HunteraClient } from "./huntera-client.mjs";
-import { GameSocket } from "./game-socket.mjs";
-import { HuntSession, searchHunts, parseHuntTier } from "./hunt-session.mjs";
+import readline from "node:readline/promises";
+import { fileURLToPath } from "node:url";
+import {
+  HuntSession,
+  parseHuntTier,
+  searchHunts,
+} from "@idlex/game-core";
+import { HunteraClient } from "@idlex/huntera-client";
+import { GameSocket, type CatalogHunt } from "@idlex/protocol";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loadDotEnv();
 
 const username = process.env.HUNTERA_USERNAME;
@@ -17,31 +23,28 @@ if (!username || !password) {
 const huntTier = parseHuntTier(process.env.HUNTERA_HUNT_TIER);
 const session = new HuntSession({ tier: huntTier });
 
-let socket = null;
+let socket: GameSocket | null = null;
 let cleanupStarted = false;
-let statusTimer = null;
+let statusTimer: NodeJS.Timeout | null = null;
 let isRunning = true;
 
-// Handlers de encerramento seguro
 process.once("SIGINT", () => void cleanupAndExit(0));
 process.once("SIGTERM", () => void cleanupAndExit(0));
 
-async function main() {
+async function main(): Promise<void> {
   console.log("═══════════════════════════════════════════");
   console.log("   Huntera Direct Client — Caçadas CLI");
   console.log("═══════════════════════════════════════════\n");
 
-  // Fase 1 — Autenticação HTTP
   console.log("⏳ Autenticando...");
   const client = new HunteraClient();
-  await client.login(username, password);
+  await client.login(username!, password!);
   const characters = await client.characters();
   const character = characters.characters?.[0];
   if (!character) die("Nenhum personagem encontrado na conta.");
 
   console.log(`✔  Personagem: ${character.name} (nível ${character.level}, ${character.vocation})\n`);
 
-  // Fase 1b — Ticket e conexão WebSocket
   console.log("⏳ Obtendo ticket de jogo...");
   const ticket = await client.gameTicket(character.id);
   const wsOrigin = safeWsUrl(ticket.websocketUrl);
@@ -58,12 +61,10 @@ async function main() {
   await socket.connect();
   console.log("✔  Conectado.\n");
 
-  // Fase 2 — Catálogo de caçadas
   console.log("⏳ Aguardando catálogo de caçadas...");
   const catalog = await waitForCatalog(socket, 15000);
   console.log(`✔  Catálogo recebido: ${catalog.length} caçadas disponíveis.\n`);
 
-  // Loop contínuo: permite selecionar hunt, jogar, sair e escolher outra
   while (isRunning) {
     const chosen = await selectHunt(catalog);
     if (!chosen) {
@@ -72,15 +73,14 @@ async function main() {
       return;
     }
 
-    const huntId = chosen.id ?? chosen.huntId;
-    const huntName = chosen.name ?? chosen.displayName ?? huntId;
-    const validMonsters = chosen.monsters?.map((m) => m.name) ?? [];
+    const huntId = (chosen as any).id ?? (chosen as any).huntId;
+    const huntName = (chosen as any).name ?? (chosen as any).displayName ?? huntId;
+    const validMonsters = (chosen as any).monsters?.map((m: any) => m.name) ?? [];
     session.setHunt(huntId, huntName, validMonsters);
 
     console.log(`\n🎯 Entrando na caçada: ${huntName} (id=${huntId}, tier=${huntTier})\n`);
     socket.send({ type: "start-hunt", huntId, tier: huntTier });
 
-    // Loop de monitoramento interativo durante a hunt
     await runHuntLoop(socket, session);
 
     if (isRunning) {
@@ -91,16 +91,7 @@ async function main() {
   }
 }
 
-/**
- * Loop interativo durante a execução de uma caçada.
- * Suporta teclas diretas (sem precisar de Enter se for TTY):
- * - 'l': sair da caçada atual e voltar ao catálogo com contagem regressiva
- * - 'd': alternar visão detalhada de drops e suprimentos
- * - 'q': encerrar sessão
- * @param {GameSocket} sock
- * @param {HuntSession} sess
- */
-async function runHuntLoop(sock, sess) {
+async function runHuntLoop(sock: GameSocket, sess: HuntSession): Promise<void> {
   sess.renderStatus(process.stdout);
   statusTimer = setInterval(() => {
     if (sess.huntActive) {
@@ -111,14 +102,7 @@ async function runHuntLoop(sock, sess) {
   return new Promise((resolve) => {
     let leaveTriggered = false;
 
-    const stopTrackingAndResolve = async () => {
-      if (statusTimer) {
-        clearInterval(statusTimer);
-        statusTimer = null;
-      }
-      removeListeners();
-      resolve();
-    };
+    let removeListeners: () => void = () => {};
 
     const handleLeave = async () => {
       if (leaveTriggered) return;
@@ -146,13 +130,12 @@ async function runHuntLoop(sock, sess) {
       resolve();
     };
 
-    // Configuração de entrada pelo terminal
     if (process.stdin.isTTY) {
       readlineCb.emitKeypressEvents(process.stdin);
       process.stdin.setRawMode(true);
       process.stdin.resume();
 
-      const onKeypress = (str, key) => {
+      const onKeypress = (_str: string, key: readlineCb.Key) => {
         if (!key) return;
 
         if (key.ctrl && key.name === "c") {
@@ -172,7 +155,7 @@ async function runHuntLoop(sock, sess) {
 
       process.stdin.on("keypress", onKeypress);
 
-      var removeListeners = () => {
+      removeListeners = () => {
         process.stdin.removeListener("keypress", onKeypress);
         try {
           if (process.stdin.isTTY) process.stdin.setRawMode(false);
@@ -180,7 +163,6 @@ async function runHuntLoop(sock, sess) {
         } catch {}
       };
     } else {
-      // Modo não-TTY (fallback com readline)
       const rlNonTty = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -210,7 +192,7 @@ async function runHuntLoop(sock, sess) {
 
       void checkCommand();
 
-      var removeListeners = () => {
+      removeListeners = () => {
         try {
           rlNonTty.close();
         } catch {}
@@ -219,13 +201,11 @@ async function runHuntLoop(sock, sess) {
   });
 }
 
-/**
- * Executa o desengajamento da caçada com contagem regressiva visível.
- * @param {GameSocket} sock
- * @param {HuntSession} sess
- * @param {number} seconds
- */
-async function countdownLeave(sock, sess, seconds = 5) {
+async function countdownLeave(
+  sock: GameSocket,
+  sess: HuntSession,
+  seconds = 5,
+): Promise<void> {
   try {
     sock.send({ type: "leave-hunt" });
   } catch {}
@@ -240,34 +220,29 @@ async function countdownLeave(sock, sess, seconds = 5) {
   await sleep(300);
 }
 
-/**
- * Aguarda a primeira mensagem `hunt-catalog` por até `timeoutMs` milissegundos.
- * @param {GameSocket} sock
- * @param {number} timeoutMs
- * @returns {Promise<object[]>}
- */
-function waitForCatalog(sock, timeoutMs) {
+function waitForCatalog(
+  sock: GameSocket,
+  timeoutMs: number,
+): Promise<CatalogHunt[]> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error("Timeout aguardando hunt-catalog. Verifique a conexão.")),
+      () =>
+        reject(
+          new Error("Timeout aguardando hunt-catalog. Verifique a conexão."),
+        ),
       timeoutMs,
     );
     const unsub = sock.onMessage((msg) => {
-      if (msg.type === "hunt-catalog" && Array.isArray(msg.hunts)) {
+      if (msg.type === "hunt-catalog" && Array.isArray((msg as any).hunts)) {
         clearTimeout(timer);
         unsub();
-        resolve(msg.hunts);
+        resolve((msg as any).hunts);
       }
     });
   });
 }
 
-/**
- * Exibe o catálogo e coleta a seleção do usuário via readline limpo.
- * @param {object[]} catalog
- * @returns {Promise<object|null>}
- */
-async function selectHunt(catalog) {
+async function selectHunt(catalog: CatalogHunt[]): Promise<CatalogHunt | null> {
   printTopHunts(catalog.slice(0, 10));
 
   const rl = readline.createInterface({
@@ -277,47 +252,64 @@ async function selectHunt(catalog) {
 
   try {
     while (true) {
-      let query;
+      let query: string;
       try {
-        query = (await rl.question('🔍 Escolha a caçada (nome, ID ou número 1-10, ou "q" para sair): ')).trim();
+        query = (
+          await rl.question(
+            '🔍 Escolha a caçada (nome, ID ou número 1-10, ou "q" para sair): ',
+          )
+        ).trim();
       } catch {
         return null;
       }
 
       if (query.toLowerCase() === "q" || query === "") return null;
 
-      // Seleção direta por número (1 a 10)
       const num = parseInt(query, 10);
       if (!Number.isNaN(num) && num >= 1 && num <= 10) {
         const hunt = catalog[num - 1];
-        console.log(`   ✔  Selecionado: ${hunt.name ?? hunt.displayName ?? hunt.id}\n`);
-        return hunt;
+        if (hunt) {
+          console.log(
+            `   ✔  Selecionado: ${hunt.name ?? hunt.displayName ?? hunt.id}\n`,
+          );
+          return hunt;
+        }
       }
 
       const matches = searchHunts(catalog, query);
 
       if (matches.length === 0) {
-        console.log(`   ❌ Nenhuma caçada encontrada para "${query}". Tente novamente.\n`);
+        console.log(
+          `   ❌ Nenhuma caçada encontrada para "${query}". Tente novamente.\n`,
+        );
         continue;
       }
 
-      if (matches.length === 1) {
+      if (matches.length === 1 && matches[0]) {
         const hunt = matches[0];
-        console.log(`   ✔  Selecionado: ${hunt.name ?? hunt.displayName ?? hunt.id}\n`);
+        console.log(
+          `   ✔  Selecionado: ${hunt.name ?? hunt.displayName ?? hunt.id}\n`,
+        );
         return hunt;
       }
 
-      console.log(`\n   Encontradas ${matches.length} caçadas correspondentes:\n`);
+      console.log(
+        `\n   Encontradas ${matches.length} caçadas correspondentes:\n`,
+      );
       matches.forEach((h, i) => {
         const label = h.name ?? h.displayName ?? h.id;
-        const id = h.id ?? h.huntId ?? "?";
+        const id = h.id ?? (h as any).huntId ?? "?";
         console.log(`   [${i + 1}] ${label} (id: ${id})`);
       });
       console.log();
 
-      let idx;
+      let idx: number;
       try {
-        const raw = (await rl.question(`   Escolha o número (1–${matches.length}), ou "q" para cancelar: `)).trim();
+        const raw = (
+          await rl.question(
+            `   Escolha o número (1–${matches.length}), ou "q" para cancelar: `,
+          )
+        ).trim();
         if (raw.toLowerCase() === "q" || raw === "") return null;
         idx = parseInt(raw, 10);
       } catch {
@@ -330,35 +322,35 @@ async function selectHunt(catalog) {
       }
 
       const hunt = matches[idx - 1];
-      console.log(`   ✔  Selecionado: ${hunt.name ?? hunt.displayName ?? hunt.id}\n`);
-      return hunt;
+      if (hunt) {
+        console.log(
+          `   ✔  Selecionado: ${hunt.name ?? hunt.displayName ?? hunt.id}\n`,
+        );
+        return hunt;
+      }
     }
   } finally {
     rl.close();
   }
 }
 
-/**
- * Imprime as primeiras hunts do catálogo no terminal numeradas de 1 a 10.
- * @param {object[]} hunts
- */
-function printTopHunts(hunts) {
+function printTopHunts(hunts: CatalogHunt[]): void {
   console.log("── Primeiras caçadas disponíveis ──────────────────────────────");
   hunts.forEach((hunt, i) => {
-    const id = hunt.id ?? hunt.huntId ?? "?";
+    const id = hunt.id ?? (hunt as any).huntId ?? "?";
     const name = hunt.name ?? hunt.displayName ?? "?";
-    const tierInfo = hunt.tier !== undefined ? ` | tier=${hunt.tier}` : "";
-    const levelReq = hunt.requiredLevel !== undefined ? ` | nível mín.=${hunt.requiredLevel}` : "";
+    const tierInfo =
+      (hunt as any).tier !== undefined ? ` | tier=${(hunt as any).tier}` : "";
+    const levelReq =
+      (hunt as any).requiredLevel !== undefined
+        ? ` | nível mín.=${(hunt as any).requiredLevel}`
+        : "";
     console.log(`  [${i + 1}] ${name} (id: ${id})${tierInfo}${levelReq}`);
   });
   console.log("────────────────────────────────────────────────────────────────\n");
 }
 
-/**
- * Encerra a sessão de forma idempotente e segura.
- * @param {number} code
- */
-async function cleanupAndExit(code) {
+async function cleanupAndExit(code: number): Promise<void> {
   if (cleanupStarted) return;
   cleanupStarted = true;
   isRunning = false;
@@ -388,7 +380,7 @@ async function cleanupAndExit(code) {
   process.exit(code);
 }
 
-function safeWsUrl(url) {
+function safeWsUrl(url: string): string {
   try {
     const parsed = new URL(url);
     return `${parsed.origin}${parsed.pathname}`;
@@ -397,28 +389,31 @@ function safeWsUrl(url) {
   }
 }
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function die(msg) {
+function die(msg: string): never {
   console.error(`\n❌ ${msg}`);
   process.exit(1);
 }
 
-function loadDotEnv() {
+function loadDotEnv(): void {
   try {
-    const text = fs.readFileSync(new URL("../.env", import.meta.url), "utf8");
+    const envPath = path.resolve(__dirname, "../../.env");
+    const text = fs.readFileSync(envPath, "utf8");
     for (const line of text.split(/\r?\n/)) {
       const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
-      if (match && process.env[match[1]] === undefined) {
-        process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, "");
+      const key = match?.[1];
+      const val = match?.[2];
+      if (key && val !== undefined && process.env[key] === undefined) {
+        process.env[key] = val.replace(/^['"]|['"]$/g, "");
       }
     }
   } catch {}
 }
 
 main().catch((err) => {
-  console.error("\n❌ Erro inesperado:", err.message);
+  console.error("\n❌ Erro inesperado:", (err as Error).message);
   cleanupAndExit(1);
 });

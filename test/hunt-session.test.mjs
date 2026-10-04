@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Writable } from "node:stream";
-import { HuntSession, searchHunts, parseHuntTier, formatDuration, formatStamina, getStaminaTier, formatEstimatedTime } from "../src/hunt-session.mjs";
+import { HuntSession, searchHunts, parseHuntTier, formatDuration, formatStamina, getStaminaTier, formatEstimatedTime } from "@idlex/game-core";
 
 test("HuntSession: tracks kills across multiple monster types", () => {
   const session = new HuntSession({ huntId: "folda-hunt", huntName: "Folda Icefields", tier: 0 });

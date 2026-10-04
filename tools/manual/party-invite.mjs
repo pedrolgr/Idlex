@@ -1,5 +1,5 @@
-import { HunteraClient } from "../../src/huntera-client.mjs";
-import { GameSocket } from "../../src/game-socket.mjs";
+import { HunteraClient } from "@idlex/huntera-client";
+import { GameSocket } from "@idlex/protocol";
 import fs from "fs";
 
 const envContent = fs.readFileSync(new URL("../../.env", import.meta.url), "utf8");

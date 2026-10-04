@@ -1,0 +1,24 @@
+{
+  "name": "@idlex/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@idlex/game-core": "workspace:*",
+    "@idlex/huntera-client": "workspace:*",
+    "@idlex/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@idlex/config": "workspace:*",
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

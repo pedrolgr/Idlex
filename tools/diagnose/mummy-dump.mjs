@@ -13,8 +13,8 @@
 import "node:process";
 import fs from "node:fs";
 import { inflateRawSync } from "node:zlib";
-import { HunteraClient } from "./huntera-client.mjs";
-import { encodeMessage } from "./game-codec.mjs";
+import { HunteraClient } from "@idlex/huntera-client";
+import { encodeMessage } from "@idlex/protocol";
 
 loadDotEnv();
 

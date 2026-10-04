@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { encodeMessage, decodeOutgoingForTest } from "../src/game-codec.mjs";
+import { encodeMessage, decodeOutgoingForTest } from "@idlex/protocol";
 
 test("encodes and decodes a protocol message", () => {
   const decoded = decodeOutgoingForTest(encodeMessage({ type: "ping", t: 123 }));

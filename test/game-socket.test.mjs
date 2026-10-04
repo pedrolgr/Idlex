@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GameSocket } from "../src/game-socket.mjs";
+import { GameSocket } from "@idlex/protocol";
 
 class MockWebSocket {
   static OPEN = 1;
