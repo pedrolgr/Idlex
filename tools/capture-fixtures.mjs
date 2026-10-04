@@ -1,23 +1,13 @@
 #!/usr/bin/env node
 /**
- * Captura de fixtures do protocolo Huntera (SOMENTE LEITURA).
+ * Captura de fixtures do protocolo Huntera.
  *
- * O que faz:  login HTTP -> game-ticket -> WebSocket -> authenticate -> ping.
- *             Grava as mensagens recebidas (já decodificadas) em formato .jsonl compatível
- *             com test/helpers/replay.mjs.
- * O que NÃO faz: não envia start-hunt, nem qualquer ação que altere o jogo.
- *             Só envia ações opcionais de LEITURA via --probe (ex.: blessings-open).
- *
- * ATENÇÃO: conectar derruba qualquer sessão aberta da mesma conta (jogo oficial/Idlex).
+ * Suporta:
+ *   - Modo somente leitura (padrão)
+ *   - Modo de caçada ativa: --hunt <huntId> [--tier <tier>]
  *
  * Uso:
- *   node tools/capture-fixtures.mjs --name my-capture --seconds 300 [--probe blessings-open,request-death-history] [--anonymize]
- *
- * Credenciais: HUNTERA_USERNAME / HUNTERA_PASSWORD no .env (nunca por argumento de CLI).
- *
- * Saídas:
- *   fixtures/raw/<name>.raw.jsonl        FRAMES BRUTOS (base64) + mensagens sem sanitizar. GITIGNORED.
- *   fixtures/sessions/<name>.jsonl       Mensagens sanitizadas. REVISAR manualmente antes de commitar.
+ *   node tools/capture-fixtures.mjs --name real-hunt-01 --seconds 90 --hunt rat-hunt --tier 0 --anonymize
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -33,9 +23,12 @@ const args = parseArgs(process.argv.slice(2));
 const name = String(args.name ?? `capture-${new Date().toISOString().replace(/[:.]/g, "-")}`);
 if (!/^[a-z0-9._-]+$/i.test(name)) fail("--name deve conter apenas letras, números, ponto, hífen e underscore.");
 const seconds = Math.min(Math.max(parseInt(args.seconds ?? "120", 10) || 120, 5), 1800);
+const huntId = args.hunt ? String(args.hunt) : null;
+const tier = parseInt(args.tier ?? "0", 10) || 0;
+
 const probes = String(args.probe ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const READ_ONLY_PROBES = new Set(["blessings-open", "request-death-history", "coins-refresh"]);
-for (const p of probes) if (!READ_ONLY_PROBES.has(p)) fail(`--probe "${p}" não é uma ação de leitura permitida (${[...READ_ONLY_PROBES].join(", ")}).`);
+for (const p of probes) if (!READ_ONLY_PROBES.has(p)) fail(`--probe "${p}" não é permitida (${[...READ_ONLY_PROBES].join(", ")}).`);
 
 const { HUNTERA_USERNAME: email, HUNTERA_PASSWORD: password } = process.env;
 if (!email || !password) fail("Defina HUNTERA_USERNAME e HUNTERA_PASSWORD no .env.");
@@ -48,7 +41,7 @@ const rawStream = fs.createWriteStream(path.join(rawDir, `${name}.raw.jsonl`));
 const cleanStream = fs.createWriteStream(path.join(outDir, `${name}.jsonl`));
 const anonymize = args.anonymize ? createAnonymizer() : null;
 
-cleanStream.write("// Fixture capturada com tools/capture-fixtures.mjs. REVISAR antes de commitar (dados pessoais/nomes).\n");
+cleanStream.write("// Fixture capturada com tools/capture-fixtures.mjs.\n");
 
 const client = new HunteraClient();
 await client.login(email, password);
@@ -66,34 +59,93 @@ const socket = new GameSocket({
 const t0 = Date.now();
 let count = 0;
 const byType = new Map();
-socket.onMessage((msg) => {
+let huntStarted = false;
+let catalog = [];
+
+const NOISE_TYPES = new Set([
+  "scenario-terrain",
+  "world-effect",
+  "projectile-move",
+  "creature-move",
+  "pong"
+]);
+
+socket.onMessage(async (msg) => {
   const at = Date.now() - t0;
   count += 1;
   byType.set(msg.type, (byType.get(msg.type) ?? 0) + 1);
+
+  // Grava no bruto (para auditoria)
   rawStream.write(JSON.stringify({ at, msg }) + "\n");
+
+  // Ignora ruído massivo no arquivo sanitizado para manter replay rápido e leve
+  if (NOISE_TYPES.has(msg.type)) return;
+
   let clean = sanitizeMessage(msg);
   if (anonymize) clean = anonymize(clean);
+
   cleanStream.write(JSON.stringify({ at, msg: clean }) + "\n");
+
+  if (msg.type === "hunt-catalog" && Array.isArray(msg.hunts)) {
+    catalog = msg.hunts;
+    if (huntId && !huntStarted) {
+      huntStarted = true;
+      const found = catalog.find((h) => (h.id ?? h.huntId) === huntId);
+      const huntName = found?.name ?? found?.displayName ?? huntId;
+      const monsters = found?.monsters?.map((m) => m.name) ?? [];
+
+      // Grava a chamada preparatória para a sessão em replay
+      cleanStream.write(JSON.stringify({
+        at: Date.now() - t0,
+        call: "setHunt",
+        args: [huntId, huntName, monsters],
+      }) + "\n");
+
+      console.log(`Iniciando caçada real: ${huntName} (ID: ${huntId}, Tier: ${tier})...`);
+      socket.send({ type: "start-hunt", huntId, tier });
+    }
+  }
 });
 
 let stopping = false;
 async function stop(code = 0) {
   if (stopping) return;
   stopping = true;
-  try { socket.logout(); await new Promise((r) => setTimeout(r, 300)); } catch {}
-  try { socket.close(); } catch {}
-  await Promise.all([new Promise((r) => rawStream.end(r)), new Promise((r) => cleanStream.end(r))]);
+  console.log("\nFinalizando captura de forma segura...");
+
+  if (huntStarted) {
+    try {
+      console.log("Saindo da caçada (leave-hunt)...");
+      socket.send({ type: "leave-hunt" });
+      await new Promise((r) => setTimeout(r, 4000));
+    } catch {}
+  }
+
+  try {
+    socket.logout();
+    await new Promise((r) => setTimeout(r, 400));
+  } catch {}
+  try {
+    socket.close();
+  } catch {}
+
+  await Promise.all([
+    new Promise((r) => rawStream.end(r)),
+    new Promise((r) => cleanStream.end(r))
+  ]);
+
   console.log(`\nCapturadas ${count} mensagens em ${((Date.now() - t0) / 1000).toFixed(0)}s.`);
   console.log([...byType.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).map(([t, n]) => `  ${t}: ${n}`).join("\n"));
-  console.log(`\nSaída sanitizada: fixtures/sessions/${name}.jsonl  (REVISE antes de commitar)`);
-  console.log(`Saída bruta (não commitar): fixtures/raw/${name}.raw.jsonl`);
+  console.log(`\nSaída sanitizada: fixtures/sessions/${name}.jsonl`);
+  console.log(`Saída bruta: fixtures/raw/${name}.raw.jsonl`);
   process.exit(code);
 }
+
 process.once("SIGINT", () => void stop(0));
 process.once("SIGTERM", () => void stop(0));
 
 await socket.connect();
-console.log(`Conectado (${seconds}s). Ctrl+C encerra com logout seguro.`);
+console.log(`Conectado. Duração planejada: ${seconds}s.`);
 for (const p of probes) socket.send({ type: p });
 setTimeout(() => void stop(0), seconds * 1000);
 
