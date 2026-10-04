@@ -1,0 +1,339 @@
+{
+  "huntId": null,
+  "huntName": null,
+  "tier": 0,
+  "huntActive": false,
+  "leavePendingMs": null,
+  "elapsedFormatted": "00s",
+  "elapsedMs": 0,
+  "monsterDeaths": 0,
+  "killsByName": {},
+  "experienceGained": 0,
+  "playerState": {
+    "level": 57,
+    "hp": 905,
+    "maxHp": 905,
+    "mana": 290,
+    "maxMana": 290,
+    "staminaMs": 43200000,
+    "staminaFormatted": "12h 00m",
+    "staminaTier": "red",
+    "staminaDraining": false
+  },
+  "staminaFormatted": "12h 00m",
+  "experience": 38608,
+  "experienceNeeded": 154100,
+  "remainingXp": 115492,
+  "xpPercent": 25,
+  "skills": [
+    {
+      "id": "magic",
+      "name": "Magic Level",
+      "level": 7,
+      "progress": 1901953,
+      "needed": 3499200,
+      "remaining": 1597247,
+      "percent": 54
+    },
+    {
+      "id": "fist",
+      "name": "Fist Fighting",
+      "level": 10,
+      "progress": 0,
+      "needed": 50,
+      "remaining": 50,
+      "percent": 0
+    },
+    {
+      "id": "club",
+      "name": "Club Fighting",
+      "level": 10,
+      "progress": 0,
+      "needed": 50,
+      "remaining": 50,
+      "percent": 0
+    },
+    {
+      "id": "sword",
+      "name": "Sword Fighting",
+      "level": 76,
+      "progress": 11103,
+      "needed": 26970,
+      "remaining": 15867,
+      "percent": 41
+    },
+    {
+      "id": "axe",
+      "name": "Axe Fighting",
+      "level": 10,
+      "progress": 0,
+      "needed": 50,
+      "remaining": 50,
+      "percent": 0
+    },
+    {
+      "id": "distance",
+      "name": "Distance",
+      "level": 10,
+      "progress": 0,
+      "needed": 30,
+      "remaining": 30,
+      "percent": 0
+    },
+    {
+      "id": "shielding",
+      "name": "Shielding",
+      "level": 76,
+      "progress": 41975,
+      "needed": 53940,
+      "remaining": 11965,
+      "percent": 77
+    },
+    {
+      "id": "fishing",
+      "name": "Fishing",
+      "level": 10,
+      "progress": 0,
+      "needed": 20,
+      "remaining": 20,
+      "percent": 0
+    }
+  ],
+  "bestiary": {
+    "kills": {
+      "elf": 2737,
+      "rat": 4054,
+      "rorc": 39,
+      "wolf": 7,
+      "wyrm": 4,
+      "ghoul": 217,
+      "mummy": 2383,
+      "troll": 704,
+      "amazon": 3373,
+      "spider": 3501,
+      "rotworm": 1192,
+      "bonelord": 1172,
+      "elfscout": 54,
+      "minotaur": 329,
+      "skeleton": 8,
+      "tortoise": 255,
+      "valkyrie": 2141,
+      "bloodcrab": 50,
+      "bluedjinn": 6,
+      "frosttroll": 55,
+      "swamptroll": 7,
+      "winterwolf": 55,
+      "elfarcanist": 49,
+      "mutatedhuman": 774,
+      "lizardtemplar": 1,
+      "adeptofthecult": 1,
+      "lizardsentinel": 1,
+      "noviceofthecult": 6,
+      "acolyteofthecult": 4,
+      "thornbacktortoise": 103
+    },
+    "summary": {
+      "completed": 4,
+      "total": 161,
+      "bonusPercent": 4
+    }
+  },
+  "priceMode": "npc",
+  "totalGold": 259221,
+  "goldGainedInBag": 0,
+  "itemsValue": 0,
+  "lootValue": 0,
+  "waste": 0,
+  "balance": 0,
+  "rates": {
+    "elapsedSeconds": 0,
+    "goldPerHour": 0,
+    "wastePerHour": 0,
+    "balancePerHour": 0,
+    "xpPerHour": 0,
+    "secondsToNextLevel": null,
+    "timeToNextLevelFormatted": "--",
+    "goldPerHourFormatted": "0 gp/h",
+    "wastePerHourFormatted": "0 gp/h",
+    "balancePerHourFormatted": "0 gp/h",
+    "xpPerHourFormatted": "0 XP/h"
+  },
+  "goldPerHour": 0,
+  "wastePerHour": 0,
+  "balancePerHour": 0,
+  "xpPerHour": 0,
+  "timeToNextLevelSeconds": null,
+  "timeToNextLevelFormatted": "--",
+  "killsDetailed": [],
+  "bagLoot": [],
+  "loot": [],
+  "supplies": [],
+  "suppliesUsed": [],
+  "totalSuppliesCost": 0,
+  "inventory": {
+    "backpack": [],
+    "satchel": [],
+    "gold": 259221
+  },
+  "actionBar": {
+    "slots": [
+      {
+        "spellId": "challenge",
+        "conditions": [
+          {
+            "value": 2,
+            "percent": false,
+            "subject": "area",
+            "operator": ">=",
+            "attribute": "targets"
+          }
+        ]
+      },
+      {
+        "enabled": true,
+        "potionId": "health-potion",
+        "conditions": [
+          {
+            "value": 80,
+            "percent": true,
+            "subject": "player",
+            "operator": "<=",
+            "attribute": "health"
+          }
+        ]
+      },
+      {
+        "spellId": "wound-cleansing",
+        "conditions": [
+          {
+            "value": 75,
+            "percent": true,
+            "subject": "player",
+            "operator": "<=",
+            "attribute": "health"
+          }
+        ]
+      },
+      {
+        "spellId": "lesser-front-sweep",
+        "conditions": [
+          {
+            "value": 2,
+            "percent": false,
+            "subject": "area",
+            "operator": ">=",
+            "attribute": "targets"
+          }
+        ]
+      },
+      {
+        "enabled": true,
+        "spellId": "brutal-strike",
+        "conditions": [
+          {
+            "value": 70,
+            "percent": true,
+            "subject": "player",
+            "operator": "<=",
+            "attribute": "health"
+          }
+        ]
+      },
+      {
+        "runeId": "great-fireball-rune",
+        "enabled": false,
+        "conditions": [
+          {
+            "value": 50,
+            "percent": true,
+            "subject": "player",
+            "operator": "<=",
+            "attribute": "health"
+          }
+        ]
+      },
+      {
+        "spellId": "whirlwind-throw",
+        "conditions": []
+      },
+      {
+        "enabled": true,
+        "potionId": "mana-potion",
+        "conditions": [
+          {
+            "value": 75,
+            "percent": true,
+            "subject": "player",
+            "operator": "<=",
+            "attribute": "mana"
+          }
+        ]
+      },
+      {
+        "runeId": "great-fireball-rune",
+        "conditions": [
+          {
+            "value": 2,
+            "percent": false,
+            "subject": "area",
+            "operator": ">=",
+            "attribute": "targets"
+          }
+        ]
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "presets": [
+      "Default"
+    ],
+    "activePreset": 0,
+    "managed": false
+  },
+  "friends": [
+    {
+      "name": "Player1",
+      "online": true,
+      "level": 244,
+      "vocation": "paladin",
+      "lastSeenAt": null
+    }
+  ],
+  "party": null,
+  "partyInvite": null,
+  "transferOffer": null,
+  "deathInfo": {
+    "isDead": false,
+    "diedAt": 1791086635811,
+    "killer": "Wyrm",
+    "where": null,
+    "lostExperience": 95402,
+    "lostLevels": 0,
+    "skillsLost": [],
+    "blessingsSpent": 5,
+    "blessings": [],
+    "freeBless": true,
+    "lostItems": [],
+    "hits": [],
+    "levelBefore": null,
+    "levelAfter": null,
+    "experienceBefore": null,
+    "experienceAfter": null
+  },
+  "blessings": {
+    "owned": [],
+    "cost": 0,
+    "freeUntilLevel": 80,
+    "lossReductionPercent": 40,
+    "equipmentLossPercent": 0
+  }
+}
