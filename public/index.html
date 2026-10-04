@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Idlex — Huntera Direct Client Multi-Box</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header Superior -->
+  <header class="top-nav">
+    <div class="brand">
+      <span class="brand-icon">🗡️</span>
+      <div class="brand-text">
+        <h1>IDLEX</h1>
+        <span class="subtext">Huntera Multi-Box Dashboard</span>
+      </div>
+    </div>
+
+    <!-- Controles de Layout e Party Global -->
+    <div class="layout-controls">
+      <button id="btn-global-party" class="global-party-nav-btn" onclick="openGlobalPartyModal()" title="Painel da Party Global">
+        <span class="party-nav-icon">🛡️</span>
+        <span class="party-nav-text">Party Global</span>
+        <span class="party-global-badge" id="global-party-badge">0</span>
+      </button>
+
+      <div class="view-toggle">
+        <button id="btn-view-grid" class="view-btn active" title="Grade 2x2 (4 telas simultâneas)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          Grade 2x2
+        </button>
+        <button id="btn-view-tabs" class="view-btn" title="Visualizar por Abas individuais">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+          </svg>
+          Abas
+        </button>
+      </div>
+
+      <!-- Indicador SSE em Tempo Real -->
+      <div class="connection-pill" id="live-indicator">
+        <span class="pulse-dot"></span>
+        <span class="live-text">Ao Vivo</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner Superior de Status da Party Global -->
+  <section id="global-party-banner" class="global-party-banner" style="display: none;">
+    <!-- Renderizado dinamicamente via app.js -->
+  </section>
+
+  <!-- Barra de Abas (visível no modo Abas) -->
+  <nav class="tabs-bar" id="tabs-bar" style="display: none;">
+    <button class="tab-btn active" data-slot="1">Tela 1 <span class="tab-badge" id="tab-badge-1">Livre</span></button>
+    <button class="tab-btn" data-slot="2">Tela 2 <span class="tab-badge" id="tab-badge-2">Livre</span></button>
+    <button class="tab-btn" data-slot="3">Tela 3 <span class="tab-badge" id="tab-badge-3">Livre</span></button>
+    <button class="tab-btn" data-slot="4">Tela 4 <span class="tab-badge" id="tab-badge-4">Livre</span></button>
+  </nav>
+
+  <!-- Container Principal dos 4 Slots -->
+  <main class="slots-grid" id="slots-container">
+    <!-- Slot 1 -->
+    <section class="slot-card" id="slot-card-1" data-slot-id="1">
+      <div class="slot-header">
+        <span class="slot-title">Tela 1</span>
+        <span class="slot-status-pill idle">Desconectado</span>
+      </div>
+      <div class="slot-body" id="slot-body-1">
+        <!-- Renderizado dinamicamente via app.js -->
+      </div>
+    </section>
+
+    <!-- Slot 2 -->
+    <section class="slot-card" id="slot-card-2" data-slot-id="2">
+      <div class="slot-header">
+        <span class="slot-title">Tela 2</span>
+        <span class="slot-status-pill idle">Desconectado</span>
+      </div>
+      <div class="slot-body" id="slot-body-2">
+        <!-- Renderizado dinamicamente via app.js -->
+      </div>
+    </section>
+
+    <!-- Slot 3 -->
+    <section class="slot-card" id="slot-card-3" data-slot-id="3">
+      <div class="slot-header">
+        <span class="slot-title">Tela 3</span>
+        <span class="slot-status-pill idle">Desconectado</span>
+      </div>
+      <div class="slot-body" id="slot-body-3">
+        <!-- Renderizado dinamicamente via app.js -->
+      </div>
+    </section>
+
+    <!-- Slot 4 -->
+    <section class="slot-card" id="slot-card-4" data-slot-id="4">
+      <div class="slot-header">
+        <span class="slot-title">Tela 4</span>
+        <span class="slot-status-pill idle">Desconectado</span>
+      </div>
+      <div class="slot-body" id="slot-body-4">
+        <!-- Renderizado dinamicamente via app.js -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de Configuração de Ações e Condições (Action Bar) -->
+  <div id="actionbar-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-slot-title">⚡ Configurar Slot #1</h3>
+        <button type="button" class="btn-close-modal" onclick="closeActionSlotModal()">✕</button>
+      </div>
+      <div class="modal-content">
+        <input type="hidden" id="modal-slot-id" value="1">
+        <input type="hidden" id="modal-slot-index" value="0">
+
+        <div class="form-group">
+          <label class="modal-label">Tipo de Ação:</label>
+          <div class="action-type-pills">
+            <button type="button" class="type-pill active" data-type="potion" onclick="selectActionType('potion')">🧪 Poção</button>
+            <button type="button" class="type-pill" data-type="rune" onclick="selectActionType('rune')">✨ Runa</button>
+            <button type="button" class="type-pill" data-type="spell" onclick="selectActionType('spell')">⚔️ Feitiço / Spell</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="modal-label" id="modal-select-item-label">Selecione o Item / Poção:</label>
+          <select id="modal-action-item" class="modal-select"></select>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label class="modal-checkbox-label">
+            <input type="checkbox" id="modal-slot-enabled" checked>
+            <span>Slot Ativo na Sequência</span>
+          </label>
+        </div>
+
+        <div class="conditions-section">
+          <div class="conds-header">
+            <span class="modal-label">Condições de Ativação:</span>
+            <button type="button" class="btn-sm btn-add-cond" onclick="addModalCondition()">+ Adicionar Condição</button>
+          </div>
+          <div id="modal-conditions-list" class="modal-conditions-list">
+            <!-- Condições adicionadas dinamicamente -->
+          </div>
+        </div>
+
+        <div class="modal-footer-btns">
+          <button type="button" class="btn-danger btn-clear-slot" onclick="submitClearSlot()">🗑️ Limpar Slot</button>
+          <div class="modal-right-btns">
+            <button type="button" class="btn-secondary" onclick="closeActionSlotModal()">Cancelar</button>
+            <button type="button" class="btn-primary" onclick="submitSaveSlot()">💾 Salvar Regra</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Global de Amigos & Party -->
+  <div id="party-friends-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog party-dialog">
+      <div class="modal-header">
+        <h3 id="party-modal-title">🛡️ Grupo Global & Amigos</h3>
+        <button type="button" class="btn-close-modal" onclick="closePartyFriendsModal()">✕</button>
+      </div>
+      <div class="modal-content">
+        <input type="hidden" id="party-modal-slot-id" value="1">
+
+        <!-- Abas do Modal: Party Global / Amigos / Convidar -->
+        <div class="party-modal-nav">
+          <button type="button" class="party-nav-tab active" id="tab-nav-party" onclick="switchPartyModalTab('party')">
+            🛡️ Party Global <span class="tab-badge" id="party-modal-party-count">0</span>
+          </button>
+          <button type="button" class="party-nav-tab" id="tab-nav-friends" onclick="switchPartyModalTab('friends')">
+            👥 Amigos VIP <span class="tab-badge" id="party-modal-friends-count">0</span>
+          </button>
+        </div>
+
+        <!-- Seção: Party Global (Integrantes, Vitals, DPS, HPS, Shared Costs e Gestão) -->
+        <div id="party-tab-party-section" class="party-tab-section">
+          <div id="modal-party-content">
+            <!-- Integrantes da party renderizados via app.js -->
+          </div>
+        </div>
+
+        <!-- Seção: Lista de Amigos VIP e Convite Rápido -->
+        <div id="party-tab-friends-section" class="party-tab-section" style="display: none;">
+          <!-- Campo para convidar qualquer jogador por nome -->
+          <div class="party-invite-input-row">
+            <input type="text" id="party-custom-name-input" class="party-text-input" placeholder="Digite o nome de um jogador para convidar..." />
+            <button type="button" class="btn-primary btn-invite-sm" onclick="submitCustomPartyInvite()">Convidar</button>
+          </div>
+
+          <div class="friends-list-container" id="modal-friends-list">
+            <!-- Amigos renderizados via app.js -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

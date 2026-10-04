@@ -1,0 +1,40 @@
+// Fixture SINTÉTICA (escrita à mão a partir de INVESTIGACAO.md e dos handlers de HuntSession).
+// Cobre: hunt, kills por nome, XP, vitals, loot na bag, suprimentos, party, convite, morte e bênçãos.
+// Será complementada por fixtures reais capturadas com tools/capture-fixtures.mjs.
+{"at":0,"call":"setPlayerId","args":[65980]}
+{"at":0,"call":"setPlayerName","args":["Tester"]}
+{"at":0,"msg":{"type":"blessings-status","owned":["spark-of-the-phoenix"],"cost":50000,"freeUntilLevel":80,"lossReductionPercent":40,"equipmentLossPercent":0}}
+{"at":0,"msg":{"type":"action-bar-presets","names":["Default","Boss"],"active":0}}
+{"at":0,"msg":{"type":"vip-list","entries":[{"name":"Friend One","online":true,"level":120,"vocation":"knight"},{"name":"Friend Two","online":false,"lastSeenAt":1699990000000}]}}
+{"at":100,"msg":{"type":"player-stats","level":58,"health":900,"maxHealth":1200,"mana":300,"maxMana":500,"experience":1000000,"experienceNeeded":1500000,"staminaMs":151200000,"staminaDraining":true,"magicLevel":10,"skills":{"sword":80},"skillProgress":{"sword":40},"skillProgressNeeded":{"sword":100}}}
+{"at":100,"msg":{"type":"inventory-delta","gold":10000,"slotCount":4,"satchelCount":2,"changes":[]}}
+{"at":200,"call":"setHunt","args":["rat-hunt","Rat Cellars",["Rat","Cave Rat"]]}
+{"at":300,"msg":{"type":"hunt-pending","hunt":{"huntId":"rat-hunt","tier":0},"remainingMs":3600000}}
+{"at":300,"msg":{"type":"hunt-analyzer-session","startedAt":1700000000300,"durationMs":0}}
+{"at":400,"msg":{"type":"creature-appear","creature":{"id":1844881,"kind":"player","name":"Tester","level":58,"vocation":"knight"}}}
+{"at":400,"msg":{"type":"creature-appear","creature":{"id":201,"kind":"monster","name":"Rat"}}}
+{"at":400,"msg":{"type":"creature-appear","creature":{"id":202,"kind":"monster","name":"Rat"}}}
+{"at":400,"msg":{"type":"creature-appear","creature":{"id":203,"kind":"monster","name":"Cave Rat"}}}
+{"at":400,"msg":{"type":"creature-appear","creature":{"id":204,"kind":"monster","name":"Dragon"}}}
+{"at":1000,"msg":{"type":"creature-disappear","id":201}}
+{"at":1000,"msg":{"type":"experience-gain","value":20}}
+{"at":1500,"msg":{"type":"creature-disappear","id":202}}
+{"at":1500,"msg":{"type":"experience-gain","value":20}}
+{"at":2000,"msg":{"type":"creature-disappear","id":203}}
+{"at":2000,"msg":{"type":"creature-disappear","id":204}}
+{"at":2000,"msg":{"type":"creature-disappear","id":999}}
+{"at":2100,"msg":{"type":"experience-gain","value":25}}
+{"at":2200,"msg":{"type":"player-vitals","hp":850,"maxHp":1200,"mana":280,"maxMana":500}}
+{"at":2300,"msg":{"type":"inventory-delta","gold":10120,"changes":[{"container":"backpack","index":0,"item":{"itemId":3031,"name":"gold coin","count":120,"value":120}},{"container":"backpack","index":1,"item":{"itemId":3607,"name":"cheese","count":2,"value":20}}]}}
+{"at":2400,"msg":{"type":"creature-say","id":1844881,"itemId":266,"text":"Aaaah..."}}
+{"at":2500,"msg":{"type":"creature-say","id":1844881,"itemId":266,"text":"Aaaah..."}}
+{"at":3000,"msg":{"type":"loot-add","item":{"itemId":3607,"name":"cheese","count":1,"value":10}}}
+{"at":3100,"msg":{"type":"market-prices","npc":[[3607,10]],"auction":[[3607,15]]}}
+{"at":3500,"msg":{"type":"party-invited","fromId":777,"fromName":"Friend One","members":[{"name":"Friend One","level":120,"vocation":"knight"}]}}
+{"at":3600,"msg":{"type":"party-update","leaderId":777,"members":[{"id":777,"name":"Friend One","level":120,"vocation":"knight","healthPercent":100,"manaPercent":100,"dps":55},{"id":65980,"name":"Tester","level":58,"vocation":"knight","healthPercent":70,"manaPercent":60,"dps":20}]}}
+{"at":4000,"msg":{"type":"hunt-analyzer-update","startedAt":1700000000300,"durationMs":3700,"kills":3,"experience":65,"waste":300,"lootValue":140}}
+{"at":5000,"msg":{"type":"creature-health","id":1844881,"healthPercent":0}}
+{"at":5000,"msg":{"type":"player-died","diedAt":1700000005000,"killer":"Dragon","penalty":{"lostExperience":5000,"lostLevels":0,"blessingsSpent":1,"freeBless":false,"lostItems":[]},"hits":[{"source":"Dragon","amount":300}]}}
+{"at":5100,"msg":{"type":"death-history","entries":[{"diedAt":1700000005000,"killer":"Dragon","where":"Rat Cellars","levelBefore":58,"levelAfter":58,"experienceBefore":1000065,"experienceAfter":995065}]}}
+{"at":5200,"call":"revive","args":[]}
+{"at":5300,"msg":{"type":"unknown-future-message","foo":"bar"}}

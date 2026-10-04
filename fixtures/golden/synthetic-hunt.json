@@ -1,0 +1,297 @@
+{
+  "huntId": "rat-hunt",
+  "huntName": "Rat Cellars",
+  "tier": 0,
+  "huntActive": false,
+  "leavePendingMs": null,
+  "elapsedFormatted": "0m 03s",
+  "elapsedMs": 3700,
+  "monsterDeaths": 3,
+  "killsByName": {
+    "Rat": 2,
+    "Cave Rat": 1
+  },
+  "experienceGained": 65,
+  "playerState": {
+    "level": 58,
+    "hp": 0,
+    "maxHp": 1200,
+    "mana": 300,
+    "maxMana": 500,
+    "staminaMs": 151200000,
+    "staminaFormatted": "42h 00m",
+    "staminaTier": "green",
+    "staminaDraining": true
+  },
+  "staminaFormatted": "42h 00m",
+  "experience": 1000000,
+  "experienceNeeded": 1500000,
+  "remainingXp": 500000,
+  "xpPercent": 66,
+  "skills": [
+    {
+      "id": "magic",
+      "name": "Magic Level",
+      "level": 10,
+      "progress": 0,
+      "needed": 1,
+      "remaining": 1,
+      "percent": 0
+    },
+    {
+      "id": "sword",
+      "name": "Sword Fighting",
+      "level": 80,
+      "progress": 40,
+      "needed": 100,
+      "remaining": 60,
+      "percent": 40
+    }
+  ],
+  "bestiary": {
+    "kills": {},
+    "summary": {
+      "completed": 0,
+      "total": 0,
+      "bonusPercent": 0
+    }
+  },
+  "priceMode": "npc",
+  "totalGold": 10120,
+  "goldGainedInBag": 120,
+  "itemsValue": 20,
+  "lootValue": 140,
+  "waste": 300,
+  "balance": -160,
+  "rates": {
+    "elapsedSeconds": 3.7,
+    "goldPerHour": 136216,
+    "wastePerHour": 291892,
+    "balancePerHour": -155676,
+    "xpPerHour": 63243,
+    "secondsToNextLevel": 28462,
+    "timeToNextLevelFormatted": "7h 54m",
+    "goldPerHourFormatted": "136.216 gp/h",
+    "wastePerHourFormatted": "291.892 gp/h",
+    "balancePerHourFormatted": "-155.676 gp/h",
+    "xpPerHourFormatted": "63.243 XP/h"
+  },
+  "goldPerHour": 136216,
+  "wastePerHour": 291892,
+  "balancePerHour": -155676,
+  "xpPerHour": 63243,
+  "timeToNextLevelSeconds": 28462,
+  "timeToNextLevelFormatted": "7h 54m",
+  "killsDetailed": [
+    {
+      "name": "Rat",
+      "count": 2,
+      "bestiaryKills": null
+    },
+    {
+      "name": "Cave Rat",
+      "count": 1,
+      "bestiaryKills": null
+    }
+  ],
+  "bagLoot": [
+    {
+      "itemId": 3031,
+      "name": "gold coin",
+      "count": 120,
+      "unitValue": 1,
+      "totalValue": 120
+    },
+    {
+      "itemId": 3607,
+      "name": "cheese",
+      "count": 2,
+      "unitValue": 10,
+      "totalValue": 20
+    }
+  ],
+  "loot": [
+    {
+      "itemId": 3031,
+      "name": "gold coin",
+      "count": 120,
+      "value": 120,
+      "unitValue": 1,
+      "inBag": true
+    },
+    {
+      "itemId": 3607,
+      "name": "cheese",
+      "count": 3,
+      "value": 30,
+      "unitValue": 10,
+      "inBag": true
+    }
+  ],
+  "supplies": [
+    {
+      "itemId": 266,
+      "name": "Health Potion",
+      "count": 2,
+      "unitPrice": 50,
+      "totalCost": 100,
+      "category": "potion"
+    }
+  ],
+  "suppliesUsed": [
+    {
+      "itemId": 266,
+      "name": "Health Potion",
+      "count": 2,
+      "unitPrice": 50,
+      "totalCost": 100,
+      "category": "potion"
+    }
+  ],
+  "totalSuppliesCost": 100,
+  "inventory": {
+    "backpack": [
+      {
+        "itemId": 3031,
+        "name": "gold coin",
+        "count": 120,
+        "value": 120
+      },
+      {
+        "itemId": 3607,
+        "name": "cheese",
+        "count": 2,
+        "value": 20
+      }
+    ],
+    "satchel": [],
+    "gold": 10120
+  },
+  "actionBar": {
+    "slots": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "presets": [
+      "Default",
+      "Boss"
+    ],
+    "activePreset": 0,
+    "managed": false
+  },
+  "friends": [
+    {
+      "name": "Friend One",
+      "online": true,
+      "level": 120,
+      "vocation": "knight",
+      "lastSeenAt": null
+    },
+    {
+      "name": "Friend Two",
+      "online": false,
+      "level": null,
+      "vocation": null,
+      "lastSeenAt": 1699990000000
+    }
+  ],
+  "party": {
+    "leaderId": 777,
+    "sharedCosts": null,
+    "members": [
+      {
+        "id": 777,
+        "name": "Friend One",
+        "level": 120,
+        "vocation": "knight",
+        "healthPercent": 100,
+        "manaPercent": 100,
+        "isLeader": true,
+        "staminaMinutes": null,
+        "followsLeader": false,
+        "dps": 55,
+        "damageTotal": null,
+        "hps": null,
+        "healTotal": null
+      },
+      {
+        "id": 65980,
+        "name": "Tester",
+        "level": 58,
+        "vocation": "knight",
+        "healthPercent": 70,
+        "manaPercent": 60,
+        "isLeader": false,
+        "staminaMinutes": null,
+        "followsLeader": false,
+        "dps": 20,
+        "damageTotal": null,
+        "hps": null,
+        "healTotal": null
+      }
+    ]
+  },
+  "partyInvite": {
+    "fromId": 777,
+    "fromName": "Friend One",
+    "members": [
+      {
+        "name": "Friend One",
+        "level": 120,
+        "vocation": "knight"
+      }
+    ],
+    "receivedAt": 1700000003500
+  },
+  "transferOffer": null,
+  "deathInfo": {
+    "isDead": false,
+    "diedAt": 1700000005000,
+    "killer": "Dragon",
+    "where": "Rat Cellars",
+    "lostExperience": 5000,
+    "lostLevels": 0,
+    "skillsLost": [],
+    "blessingsSpent": 1,
+    "blessings": [],
+    "freeBless": false,
+    "lostItems": [],
+    "hits": [
+      {
+        "source": "Dragon",
+        "amount": 300
+      }
+    ],
+    "levelBefore": 58,
+    "levelAfter": 58,
+    "experienceBefore": 1000065,
+    "experienceAfter": 995065
+  },
+  "blessings": {
+    "owned": [
+      "spark-of-the-phoenix"
+    ],
+    "cost": 50000,
+    "freeUntilLevel": 80,
+    "lossReductionPercent": 40,
+    "equipmentLossPercent": 0
+  }
+}

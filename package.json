@@ -1,0 +1,19 @@
+{
+  "name": "huntera-direct-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/diagnose-hunts.mjs",
+    "diagnose": "node src/diagnose.mjs",
+    "diagnose:hunts": "node src/diagnose-hunts.mjs",
+    "creature:dump": "node src/creature-dump.mjs",
+    "server": "node src/server.mjs",
+    "web": "node src/server.mjs",
+    "test": "node --test test/",
+    "capture": "node tools/capture-fixtures.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}
