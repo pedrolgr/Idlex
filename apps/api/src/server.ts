@@ -48,6 +48,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolvePublicDir(): string {
   const candidates = [
+    path.resolve(__dirname, "../../web/dist"),
+    path.resolve(__dirname, "../../../apps/web/dist"),
+    path.resolve(process.cwd(), "apps/web/dist"),
     path.resolve(__dirname, "../../../public"),
     path.resolve(__dirname, "../../public"),
     path.resolve(process.cwd(), "public"),

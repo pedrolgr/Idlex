@@ -6,6 +6,9 @@
   "packageManager": "pnpm@12.9.1",
   "scripts": {
     "dev": "turbo dev",
+    "dev:api": "pnpm --filter @idlex/api dev",
+    "dev:web": "pnpm --filter @idlex/web dev",
+    "start": "pnpm --filter @idlex/api start",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "test": "node --test test/",
