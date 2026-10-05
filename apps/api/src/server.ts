@@ -33,6 +33,13 @@ import {
 } from "./modules/redis/redis-client.js";
 import { authPlugin } from "./modules/auth/session.js";
 import { authRoutes } from "./modules/auth/routes.js";
+import {
+  toCompactSlot,
+  computeSlotDeltas,
+  getCachedCatalog,
+  type CompactSlotState,
+  type SlotPatch,
+} from "./modules/stream/deltas.js";
 import { Slot } from "./slot.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -185,7 +192,87 @@ export async function createServerApp(): Promise<{
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
   await app.register(authRoutes, { prefix: "/api/auth" });
 
-  // SSE route handler
+  // Catalog cache endpoint (Phase 5 - ETag & immutable caching)
+  app.get("/api/v1/catalog/hunts/:hash", async (req, reply) => {
+    const { hash } = req.params as { hash: string };
+    const catalog = getCachedCatalog(hash);
+    if (!catalog) {
+      return reply.status(404).send({ error: "Catálogo não encontrado ou expirado" });
+    }
+    return reply
+      .header("Cache-Control", "public, max-age=86400, immutable")
+      .header("ETag", `"${hash}"`)
+      .send(catalog);
+  });
+
+  // Granular SSE Stream clients
+  const granularClients = new Set<FastifyReply>();
+  let previousSlotsState: CompactSlotState[] = [];
+
+  function broadcastGranularDeltas(): void {
+    if (granularClients.size === 0) return;
+
+    const currentSlots = slots.map((s) => toCompactSlot(s.toJSON()));
+    const allPatches: SlotPatch[] = [];
+
+    currentSlots.forEach((curr, idx) => {
+      const prev = previousSlotsState[idx];
+      const patches = computeSlotDeltas(prev, curr);
+      allPatches.push(...patches);
+    });
+
+    previousSlotsState = currentSlots;
+
+    if (allPatches.length === 0) return;
+
+    const payload = `event: patch\ndata: ${JSON.stringify(allPatches)}\n\n`;
+    for (const reply of granularClients) {
+      try {
+        reply.raw.write(payload);
+      } catch {
+        granularClients.delete(reply);
+      }
+    }
+  }
+
+  // Hook broadcastSSE to also emit granular deltas
+  const originalBroadcast = broadcastSSE;
+  function broadcastAll(): void {
+    originalBroadcast();
+    broadcastGranularDeltas();
+  }
+
+  // Re-link slots broadcast to broadcastAll
+  slots.forEach((s) => {
+    s.onBroadcast = broadcastAll;
+  });
+
+  // Modern Granular SSE Stream endpoint
+  function handleGranularStream(req: FastifyRequest, reply: FastifyReply) {
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+    });
+
+    // Send initial snapshot
+    const initialSnapshot = slots.map((s) => toCompactSlot(s.toJSON()));
+    reply.raw.write(
+      `event: snapshot\ndata: ${JSON.stringify(initialSnapshot)}\n\n`,
+    );
+
+    granularClients.add(reply);
+
+    req.raw.on("close", () => {
+      granularClients.delete(reply);
+    });
+  }
+
+  app.get("/api/v1/stream", handleGranularStream);
+  app.get("/api/stream", handleGranularStream);
+
+  // SSE route handler (backward compatible full snapshot for legacy frontend)
   function handleSse(req: FastifyRequest, reply: FastifyReply) {
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
