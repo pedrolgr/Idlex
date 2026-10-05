@@ -2824,5 +2824,221 @@ window.buySingleBlessing = async function (slotId, blessingId) {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Sistema de Autenticação / Usuário (Fase 3 Frontend Provisório)
+// ---------------------------------------------------------------------------
+
+state.currentUser = null;
+
+window.openAuthModal = function () {
+  const modal = document.getElementById('auth-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    clearAuthMsg();
+  }
+};
+
+window.closeAuthModal = function () {
+  const modal = document.getElementById('auth-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.switchAuthTab = function (tab) {
+  const tabLogin = document.getElementById('auth-tab-login');
+  const tabReg = document.getElementById('auth-tab-register');
+  const formLogin = document.getElementById('form-login');
+  const formReg = document.getElementById('form-register');
+
+  clearAuthMsg();
+
+  if (tab === 'login') {
+    tabLogin?.classList.add('active');
+    tabReg?.classList.remove('active');
+    if (formLogin) formLogin.style.display = 'flex';
+    if (formReg) formReg.style.display = 'none';
+  } else {
+    tabReg?.classList.add('active');
+    tabLogin?.classList.remove('active');
+    if (formReg) formReg.style.display = 'flex';
+    if (formLogin) formLogin.style.display = 'none';
+  }
+};
+
+function showAuthMsg(msg, isError = false) {
+  const el = document.getElementById('auth-status-msg');
+  if (el) {
+    el.textContent = msg;
+    el.className = `auth-feedback-msg ${isError ? 'error' : 'success'}`;
+    el.style.display = 'block';
+  }
+}
+
+function clearAuthMsg() {
+  const el = document.getElementById('auth-status-msg');
+  if (el) el.style.display = 'none';
+}
+
+function updateAuthUI(user) {
+  state.currentUser = user;
+  const btnUser = document.getElementById('btn-user-account');
+  const userLabel = document.getElementById('auth-user-label');
+  const viewLogged = document.getElementById('auth-view-logged');
+  const viewForms = document.getElementById('auth-view-forms');
+
+  if (user) {
+    if (btnUser) btnUser.classList.add('logged-in');
+    if (userLabel) userLabel.textContent = user.email.split('@')[0];
+    if (viewLogged) viewLogged.style.display = 'block';
+    if (viewForms) viewForms.style.display = 'none';
+
+    const emailEl = document.getElementById('auth-display-email');
+    const planEl = document.getElementById('auth-display-plan');
+    const screensEl = document.getElementById('auth-display-screens');
+    if (emailEl) emailEl.textContent = user.email;
+    if (planEl) planEl.textContent = `Plano: ${user.plan || 'screens1'}`;
+    if (screensEl) screensEl.textContent = `${user.screens || 1} tela(s) máx`;
+  } else {
+    if (btnUser) btnUser.classList.remove('logged-in');
+    if (userLabel) userLabel.textContent = 'Entrar';
+    if (viewLogged) viewLogged.style.display = 'none';
+    if (viewForms) viewForms.style.display = 'block';
+  }
+}
+
+async function checkCurrentUser() {
+  try {
+    const res = await fetch('/api/v1/auth/me');
+    if (res.ok) {
+      const data = await res.json();
+      updateAuthUI(data.user);
+    } else {
+      updateAuthUI(null);
+    }
+  } catch {
+    updateAuthUI(null);
+  }
+}
+
+window.handleLoginSubmit = async function (e) {
+  e.preventDefault();
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  const totpInput = document.getElementById('login-totp');
+  const totpGroup = document.getElementById('login-totp-group');
+  const btnSubmit = document.getElementById('btn-login-submit');
+
+  const email = emailInput?.value.trim();
+  const password = passInput?.value;
+  const totpCode = totpInput?.value.trim();
+
+  if (!email || !password) return;
+
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'Entrando...';
+  }
+  clearAuthMsg();
+
+  try {
+    const res = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, totpCode: totpCode || undefined }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.code === 'MFA_REQUIRED') {
+        if (totpGroup) totpGroup.style.display = 'flex';
+        showAuthMsg('Digite o código 2FA de 6 dígitos gerado no seu aplicativo.', true);
+      } else {
+        showAuthMsg(data.error || 'Credenciais inválidas.', true);
+      }
+      return;
+    }
+
+    showAuthMsg('Login realizado com sucesso!', false);
+    updateAuthUI(data.user);
+    setTimeout(() => {
+      window.closeAuthModal();
+    }, 800);
+  } catch (err) {
+    showAuthMsg('Erro de rede ao conectar ao servidor.', true);
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Entrar';
+    }
+  }
+};
+
+window.handleRegisterSubmit = async function (e) {
+  e.preventDefault();
+  const emailInput = document.getElementById('reg-email');
+  const passInput = document.getElementById('reg-password');
+  const btnSubmit = document.getElementById('btn-reg-submit');
+
+  const email = emailInput?.value.trim();
+  const password = passInput?.value;
+
+  if (!email || !password) return;
+
+  if (password.length < 10) {
+    showAuthMsg('A senha deve ter no mínimo 10 caracteres.', true);
+    return;
+  }
+
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'Criando conta...';
+  }
+  clearAuthMsg();
+
+  try {
+    const res = await fetch('/api/v1/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showAuthMsg(data.error || 'Falha ao criar conta.', true);
+      return;
+    }
+
+    showAuthMsg('Conta criada com sucesso! Você já pode fazer login.', false);
+    setTimeout(() => {
+      window.switchAuthTab('login');
+      const loginEmail = document.getElementById('login-email');
+      if (loginEmail) loginEmail.value = email;
+    }, 1200);
+  } catch {
+    showAuthMsg('Erro de rede ao criar conta.', true);
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Criar Minha Conta';
+    }
+  }
+};
+
+window.handleLogout = async function () {
+  try {
+    await fetch('/api/v1/auth/logout', { method: 'POST' });
+    updateAuthUI(null);
+    showAuthMsg('Desconectado com sucesso.', false);
+    setTimeout(() => {
+      window.closeAuthModal();
+    }, 600);
+  } catch {
+    updateAuthUI(null);
+  }
+};
+
+// Checa estado do usuário no carregamento
+checkCurrentUser();
+
+
 
 
