@@ -33,6 +33,8 @@ import {
 } from "./modules/redis/redis-client.js";
 import { authPlugin } from "./modules/auth/session.js";
 import { authRoutes } from "./modules/auth/routes.js";
+import { createAccountsRoutes } from "./modules/accounts/routes.js";
+import { SlotManager } from "./modules/slots/slot-manager.js";
 import {
   toCompactSlot,
   computeSlotDeltas,
@@ -161,6 +163,8 @@ export async function createServerApp(): Promise<{
     new Slot(4, broadcastSSE),
   ];
 
+  const slotManager = new SlotManager(slots, broadcastSSE);
+
   const sseInterval = setInterval(broadcastSSE, 1000);
 
   // Healthcheck endpoints
@@ -191,6 +195,10 @@ export async function createServerApp(): Promise<{
   // Auth Routes
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
   await app.register(authRoutes, { prefix: "/api/auth" });
+
+  // Accounts Routes (Phase 4)
+  await app.register(createAccountsRoutes(slotManager), { prefix: "/api/v1/accounts" });
+  await app.register(createAccountsRoutes(slotManager), { prefix: "/api/accounts" });
 
   // Catalog cache endpoint (Phase 5 - ETag & immutable caching)
   app.get("/api/v1/catalog/hunts/:hash", async (req, reply) => {
@@ -1127,9 +1135,7 @@ export async function createServerApp(): Promise<{
   async function shutdown(): Promise<void> {
     clearInterval(sseInterval);
     app.log.info("Encerrando servidor e desconectando slots...");
-    for (const slot of slots) {
-      await slot.disconnect();
-    }
+    await slotManager.disconnectAll();
     await app.close();
     await closeDatabasePool();
     await closeRedisClient();

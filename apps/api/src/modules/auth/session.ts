@@ -25,6 +25,10 @@ declare module "fastify" {
       request: FastifyRequest,
       reply: FastifyReply,
     ) => Promise<void>;
+    optionalAuthenticate: (
+      request: FastifyRequest,
+      reply: FastifyReply,
+    ) => Promise<void>;
     requireVerifiedEmail: (
       request: FastifyRequest,
       reply: FastifyReply,
@@ -243,6 +247,24 @@ const authPluginImpl: FastifyPluginAsync = async (app) => {
       }
 
       request.userSession = session;
+    },
+  );
+
+  app.decorate(
+    "optionalAuthenticate",
+    async (request: FastifyRequest, _reply: FastifyReply) => {
+      const cookieSid =
+        request.cookies[SESSION_COOKIE_NAME] ||
+        (request.headers.authorization?.startsWith("Bearer ")
+          ? request.headers.authorization.slice(7)
+          : undefined);
+
+      if (!cookieSid) return;
+
+      const session = await getSession(cookieSid);
+      if (session) {
+        request.userSession = session;
+      }
     },
   );
 

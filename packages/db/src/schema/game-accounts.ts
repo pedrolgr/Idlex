@@ -18,11 +18,10 @@ export const gameAccounts = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     slotIndex: smallint("slot_index").notNull(),
-    credentialsSealed: text("credentials_sealed").notNull(),
-    keyVersion: smallint("key_version").notNull().default(1),
-    emailBlindIndex: varchar("email_blind_index", { length: 128 })
-      .notNull()
-      .unique(),
+    rememberCredentials: smallint("remember_credentials").notNull().default(0),
+    credentialsSealed: text("credentials_sealed"),
+    keyVersion: smallint("key_version").default(1),
+    emailBlindIndex: varchar("email_blind_index", { length: 128 }),
     emailHint: varchar("email_hint", { length: 255 }).notNull(),
     characterId: varchar("character_id", { length: 64 }),
     characterName: varchar("character_name", { length: 128 }),
