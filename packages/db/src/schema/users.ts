@@ -36,3 +36,16 @@ export const userSessions = pgTable("user_sessions", {
     .notNull()
     .defaultNow(),
 });
+
+export const verificationTokens = pgTable("verification_tokens", {
+  tokenHash: varchar("token_hash", { length: 128 }).primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 32 }).notNull(), // 'email_verification' | 'password_reset'
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

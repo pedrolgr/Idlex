@@ -26,10 +26,13 @@ import {
   fetchItemIcon,
   itemIconQuerySchema,
 } from "./modules/assets/item-icon.js";
+import fastifyCookie from "@fastify/cookie";
 import {
   checkRedisConnection,
   closeRedisClient,
 } from "./modules/redis/redis-client.js";
+import { authPlugin } from "./modules/auth/session.js";
+import { authRoutes } from "./modules/auth/routes.js";
 import { Slot } from "./slot.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -101,6 +104,9 @@ export async function createServerApp(): Promise<{
     origin: [env.APP_ORIGIN, "http://localhost:3000", "http://127.0.0.1:3000"],
     credentials: true,
   });
+
+  await app.register(fastifyCookie);
+  await app.register(authPlugin);
 
   await app.register(rateLimit, {
     max: 300,
@@ -174,6 +180,10 @@ export async function createServerApp(): Promise<{
       timestamp: new Date().toISOString(),
     });
   });
+
+  // Auth Routes
+  await app.register(authRoutes, { prefix: "/api/v1/auth" });
+  await app.register(authRoutes, { prefix: "/api/auth" });
 
   // SSE route handler
   function handleSse(req: FastifyRequest, reply: FastifyReply) {
