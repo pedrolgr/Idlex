@@ -256,35 +256,35 @@
           </div>
 
           <!-- Formulário: Login -->
-          <form id="form-login" onsubmit="handleLoginSubmit(event)" class="auth-form">
+          <form id="form-login" method="post" action="#" autocomplete="on" onsubmit="handleLoginSubmit(event)" class="auth-form">
             <div class="auth-input-group">
               <label for="login-email">E-mail</label>
-              <input type="email" id="login-email" class="party-text-input" placeholder="seu-email@dominio.com" required />
+              <input type="email" id="login-email" name="username" class="party-text-input" placeholder="seu-email@dominio.com" required autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" />
             </div>
 
             <div class="auth-input-group">
               <label for="login-password">Senha</label>
-              <input type="password" id="login-password" class="party-text-input" placeholder="••••••••••" required />
+              <input type="password" id="login-password" name="password" class="party-text-input" placeholder="••••••••••" required autocomplete="current-password" />
             </div>
 
             <div class="auth-input-group" id="login-totp-group" style="display: none;">
               <label for="login-totp">Código 2FA (6 dígitos)</label>
-              <input type="text" id="login-totp" class="party-text-input" maxlength="6" placeholder="123456" />
+              <input type="text" id="login-totp" name="one-time-code" class="party-text-input" maxlength="6" placeholder="123456" autocomplete="one-time-code" inputmode="numeric" />
             </div>
 
             <button type="submit" id="btn-login-submit" class="btn-primary auth-submit-btn">Entrar</button>
           </form>
 
           <!-- Formulário: Registro -->
-          <form id="form-register" onsubmit="handleRegisterSubmit(event)" class="auth-form" style="display: none;">
+          <form id="form-register" method="post" action="#" autocomplete="on" onsubmit="handleRegisterSubmit(event)" class="auth-form" style="display: none;">
             <div class="auth-input-group">
               <label for="reg-email">E-mail</label>
-              <input type="email" id="reg-email" class="party-text-input" placeholder="seu-email@dominio.com" required />
+              <input type="email" id="reg-email" name="username" class="party-text-input" placeholder="seu-email@dominio.com" required autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" />
             </div>
 
             <div class="auth-input-group">
               <label for="reg-password">Senha (mínimo 10 caracteres)</label>
-              <input type="password" id="reg-password" class="party-text-input" minlength="10" placeholder="Mínimo 10 caracteres" required />
+              <input type="password" id="reg-password" name="password" class="party-text-input" minlength="10" placeholder="Mínimo 10 caracteres" required autocomplete="new-password" />
             </div>
 
             <button type="submit" id="btn-reg-submit" class="btn-primary auth-submit-btn">Criar Minha Conta</button>

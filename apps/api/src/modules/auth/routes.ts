@@ -531,6 +531,70 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+  // GET /session (optional auth for client verification without console error)
+  app.get(
+    "/session",
+    {
+      preHandler: [app.optionalAuthenticate],
+    },
+    async (req, reply) => {
+      const session = req.userSession;
+      if (!session) {
+        return reply.status(200).send({ user: null });
+      }
+
+      if (!isSaasMode(env)) {
+        return reply.status(200).send({
+          user: {
+            id: session.userId,
+            email: session.email,
+            role: session.role || "admin",
+            emailVerified: true,
+            plan: "standalone",
+            screens: 4,
+          },
+        });
+      }
+
+      const db = getDb();
+      let screens = 1;
+      let planId = "screens1";
+      if (db) {
+        const subs = await db
+          .select({
+            planId: subscriptions.planId,
+            screens: plans.screens,
+            status: subscriptions.status,
+          })
+          .from(subscriptions)
+          .innerJoin(plans, eq(subscriptions.planId, plans.id))
+          .where(
+            and(
+              eq(subscriptions.userId, session.userId),
+              eq(subscriptions.status, "active"),
+            ),
+          )
+          .limit(1);
+
+        if (subs[0]) {
+          screens = subs[0].screens;
+          planId = subs[0].planId;
+        }
+      }
+
+      return reply.status(200).send({
+        user: {
+          id: session.userId,
+          email: session.email,
+          role: session.role,
+          emailVerified: session.emailVerified,
+          plan: planId,
+          screens,
+        },
+      });
+    },
+  );
+
   // GET /me (requires auth)
   app.get(
     "/me",

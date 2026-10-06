@@ -440,10 +440,20 @@ export class Slot {
     await this.ensureSocket();
     this.socket!.send({ type: "revive" });
     this.session.revive();
+    if (this.session.deathInfo) {
+      this.session.deathInfo.isDead = false;
+      this.session.deathInfo.diedAt = null;
+    }
+    if (this.character) {
+      const restoredHp = this.character.maxHp || this.session.playerState.maxHp || 100;
+      this.character.hp = restoredHp;
+      this.session.playerState.hp = restoredHp;
+    }
     this.status = "connected";
     try {
       this.socket!.send({ type: "blessings-open" });
     } catch {}
+    this.onBroadcast?.();
     return this.toJSON();
   }
 

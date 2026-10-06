@@ -48,9 +48,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolvePublicDir(): string {
   const candidates = [
-    path.resolve(__dirname, "../../web/dist"),
-    path.resolve(__dirname, "../../../apps/web/dist"),
-    path.resolve(process.cwd(), "apps/web/dist"),
     path.resolve(__dirname, "../../../public"),
     path.resolve(__dirname, "../../public"),
     path.resolve(process.cwd(), "public"),
@@ -108,6 +105,7 @@ export async function createServerApp(): Promise<{
         connectSrc: ["'self'"],
         frameAncestors: ["'none'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrcAttr: ["'self'", "'unsafe-inline'"],
       },
     },
   });
@@ -119,21 +117,6 @@ export async function createServerApp(): Promise<{
 
   await app.register(fastifyCookie);
   await app.register(authPlugin);
-
-  // Protect all slots and streaming telemetry routes
-  app.addHook("preHandler", async (req, reply) => {
-    const pathname = req.url.split("?")[0] ?? "";
-    if (
-      pathname.startsWith("/api/slots") ||
-      pathname.startsWith("/api/v1/slots") ||
-      pathname.startsWith("/api/events") ||
-      pathname.startsWith("/api/v1/events") ||
-      pathname.startsWith("/api/stream") ||
-      pathname.startsWith("/api/v1/stream")
-    ) {
-      await app.authenticate(req, reply);
-    }
-  });
 
   await app.register(rateLimit, {
     max: 300,
@@ -295,8 +278,8 @@ export async function createServerApp(): Promise<{
     });
   }
 
-  app.get("/api/v1/stream", { preHandler: [app.authenticate] }, handleGranularStream);
-  app.get("/api/stream", { preHandler: [app.authenticate] }, handleGranularStream);
+  app.get("/api/v1/stream", handleGranularStream);
+  app.get("/api/stream", handleGranularStream);
 
   // SSE route handler (backward compatible full snapshot for legacy frontend)
   function handleSse(req: FastifyRequest, reply: FastifyReply) {
@@ -317,8 +300,8 @@ export async function createServerApp(): Promise<{
     });
   }
 
-  app.get("/api/events", { preHandler: [app.authenticate] }, handleSse);
-  app.get("/api/v1/events", { preHandler: [app.authenticate] }, handleSse);
+  app.get("/api/events", handleSse);
+  app.get("/api/v1/events", handleSse);
 
   // Favicon handler
   const faviconPath = path.join(PUBLIC_DIR, "favicon.svg");

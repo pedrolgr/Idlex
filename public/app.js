@@ -576,16 +576,16 @@ function renderSlot(slot) {
 
 function renderLoginForm(slotId, error) {
   return `
-    <form class="login-form" id="form-login-${slotId}">
+    <form class="login-form" id="form-login-${slotId}" method="post" action="#" autocomplete="on">
       <h3>Entrar na Conta</h3>
       ${error ? `<div class="error-banner">${error}</div>` : ''}
       <div class="input-group">
-        <label>E-mail ou Usuário</label>
-        <input type="text" name="email" required placeholder="seu@email.com" autocomplete="username">
+        <label for="slot-login-email-${slotId}">E-mail ou Usuário</label>
+        <input type="text" id="slot-login-email-${slotId}" name="username" required placeholder="seu@email.com" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
       </div>
       <div class="input-group">
-        <label>Senha</label>
-        <input type="password" name="password" required placeholder="••••••••" autocomplete="current-password">
+        <label for="slot-login-pass-${slotId}">Senha</label>
+        <input type="password" id="slot-login-pass-${slotId}" name="password" required placeholder="••••••••" autocomplete="current-password">
       </div>
       <button type="submit" class="btn-primary" style="margin-top: 8px;">Conectar Personagem</button>
     </form>
@@ -1560,8 +1560,8 @@ function attachLoginHandler(slotId) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = form.email.value.trim();
-    const password = form.password.value;
+    const email = (form.username?.value || form.email?.value || '').trim();
+    const password = form.password ? form.password.value : '';
 
     const slot = state.slots[slotId - 1];
     if (slot) slot.status = 'logging_in';
@@ -2138,15 +2138,13 @@ window.openGlobalPartyModal = function () {
   const { leaderSlot, displaySlot } = getGlobalPartyInfo();
   // Se o líder está logado, a visão e os comandos obrigatoriamente partem dele
   const targetSlot = leaderSlot || displaySlot || state.slots.find((s) => s.status === 'connected' || s.status === 'hunting') || state.slots[0];
-  activePartyModalTab = 'party';
-  openPartyFriendsModal(targetSlot.id);
+  openPartyFriendsModal(targetSlot ? targetSlot.id : 1, 'party');
 };
 
-window.openPartyFriendsModal = function (slotId) {
-  const { leaderSlot, displaySlot } = getGlobalPartyInfo();
-  // As configurações e a visão da party são SEMPRE da perspectiva do líder caso ele esteja logado
-  const effectiveSlot = leaderSlot || (slotId ? state.slots[slotId - 1] : displaySlot) || state.slots[0];
-  activePartyModalSlotId = effectiveSlot?.id || 1;
+window.openPartyFriendsModal = function (slotId, initialTab = 'friends') {
+  const chosenSlot = (slotId ? state.slots[slotId - 1] : null) || state.slots.find((s) => s.status === 'connected' || s.status === 'hunting') || state.slots[0];
+  activePartyModalSlotId = chosenSlot?.id || slotId || 1;
+  activePartyModalTab = initialTab || 'friends';
 
   const modal = document.getElementById('party-friends-modal');
   if (!modal) return;
@@ -2195,24 +2193,32 @@ function updateOpenPartyModal() {
 
 function renderPartyModalContent() {
   const { party, leaderSlot, isLeaderLoggedIn, displaySlot, localCharNames } = getGlobalPartyInfo();
-  const effectiveSlot = leaderSlot || (activePartyModalSlotId ? state.slots[activePartyModalSlotId - 1] : displaySlot) || state.slots[0];
+  // Se estivermos na aba de Party e houver líder logado, usa a perspectiva do líder.
+  // Se estivermos na aba de Amigos (ou não houver líder), usa o slot específico selecionado.
+  const selectedSlot = activePartyModalSlotId ? state.slots[activePartyModalSlotId - 1] : null;
+  const friendsSlot = (selectedSlot && (selectedSlot.status === 'connected' || selectedSlot.status === 'hunting'))
+    ? selectedSlot
+    : (leaderSlot || displaySlot || state.slots.find((s) => s.status === 'connected' || s.status === 'hunting') || state.slots[0]);
+  const effectiveSlot = (activePartyModalTab === 'party' && leaderSlot) ? leaderSlot : friendsSlot;
   const activeChar = effectiveSlot?.character;
   const effectiveSlotId = effectiveSlot?.id || 1;
 
-  // Atualiza título do modal reforçando a visão do Líder
+  // Atualiza título do modal
   const modalTitle = document.getElementById('party-modal-title');
   if (modalTitle) {
-    if (party && isLeaderLoggedIn) {
+    if (activePartyModalTab === 'friends') {
+      modalTitle.textContent = activeChar ? `👥 Amigos VIP — ${activeChar.name} (Slot ${effectiveSlotId})` : `👥 Amigos VIP & Convidar`;
+    } else if (party && isLeaderLoggedIn) {
       modalTitle.textContent = `🛡️ Gestão da Party — Líder: ${leaderSlot.character?.name} (Slot ${leaderSlot.id})`;
     } else if (party) {
-      modalTitle.textContent = `🛡️ Grupo Global (Líder Externo: ${party.members.find((m) => m.isLeader)?.name || 'Fora do App'})`;
+      modalTitle.textContent = `🛡️ Grupo Global (Líder: ${party.members.find((m) => m.isLeader)?.name || 'Externo'})`;
     } else {
       modalTitle.textContent = `🛡️ Grupo Global & Amigos`;
     }
   }
 
   // Badges
-  const friends = effectiveSlot?.session?.friends || [];
+  const friends = friendsSlot?.session?.friends || [];
   const friendsBadge = document.getElementById('party-modal-friends-count');
   if (friendsBadge) friendsBadge.textContent = friends.length;
 
@@ -2699,7 +2705,8 @@ function showPartyToastFeedback(message, isError = false) {
 window.showPartyToastFeedback = showPartyToastFeedback;
 
 window.reviveSlot = async function (slotId) {
-  const btn = document.querySelector(`.btn-revive-main`);
+  const card = document.getElementById(`slot-card-${slotId}`);
+  const btn = card ? card.querySelector(`.btn-revive-main`) : document.querySelector(`.btn-revive-main`);
   if (btn) {
     btn.disabled = true;
     btn.textContent = '⚰️ Revivendo...';
@@ -2721,8 +2728,10 @@ window.reviveSlot = async function (slotId) {
     const s = state.slots[slotId - 1];
     if (s) {
       Object.assign(s, data);
-      const card = document.getElementById(`slot-card-${slotId}`);
-      if (card) delete card.dataset.currentStatus;
+      if (card) {
+        delete card.dataset.currentStatus;
+        delete card.dataset.currentError;
+      }
       renderSlot(s);
     }
     showPartyToastFeedback('✨ Personagem revivido com sucesso! Agora você está pronto na cidade.');
@@ -2760,7 +2769,8 @@ window.dismissDeathSlot = async function (slotId) {
 };
 
 window.buyAllBlessings = async function (slotId) {
-  const btn = document.querySelector(`.btn-bless-all`);
+  const card = document.getElementById(`slot-card-${slotId}`);
+  const btn = card ? card.querySelector(`.btn-bless-all`) : document.querySelector(`.btn-bless-all`);
   if (btn) {
     btn.disabled = true;
     btn.textContent = '✨ Adquirindo Bênçãos...';
@@ -2907,7 +2917,7 @@ function updateAuthUI(user) {
 
 async function checkCurrentUser() {
   try {
-    const res = await fetch('/api/v1/auth/me');
+    const res = await fetch('/api/v1/auth/session');
     if (res.ok) {
       const data = await res.json();
       updateAuthUI(data.user);
