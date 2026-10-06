@@ -23,11 +23,32 @@ export const envSchema = z.object({
     .string()
     .min(16)
     .default("dev-secret-session-key-at-least-16-bytes"),
+
+  APP_MODE: z
+    .string()
+    .default("standalone")
+    .transform((val) => val.trim().toLowerCase()),
+  ADMIN_EMAIL: z.string().optional(),
+  ADMIN_PASSWORD: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
 
 let cachedEnv: Env | null = null;
+
+export function resetCachedEnv(): void {
+  cachedEnv = null;
+}
+
+export function getAdminCredentials(env: Env = getEnv()): { email: string; password: string } {
+  const email = (env.ADMIN_EMAIL || env.HUNTERA_USERNAME || "admin@idlex.local").trim();
+  const password = env.ADMIN_PASSWORD || env.HUNTERA_PASSWORD || "admin123";
+  return { email, password };
+}
+
+export function isSaasMode(env: Env = getEnv()): boolean {
+  return env.APP_MODE === "saas";
+}
 
 export function getEnv(override?: Record<string, unknown>): Env {
   if (override) {
@@ -46,3 +67,4 @@ export function getEnv(override?: Record<string, unknown>): Env {
   }
   return cachedEnv;
 }
+

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { getAdminCredentials } from "../packages/config/dist/index.js";
 import { createServerApp } from "../apps/api/dist/server.js";
 
 test("Fastify Server App: healthz e readyz endpoints", async () => {
@@ -33,30 +34,54 @@ test("Fastify Server App: slots API endpoints", async () => {
   const { app, shutdown } = await createServerApp();
 
   try {
-    // GET /api/slots
+    // 1. Unauthenticated request must return 401
+    const unauthRes = await app.inject({
+      method: "GET",
+      url: "/api/slots",
+    });
+    assert.equal(unauthRes.statusCode, 401);
+
+    // 2. Login as admin (using configured admin credentials)
+    const admin = getAdminCredentials();
+    const loginRes = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: admin.email,
+        password: admin.password,
+      },
+    });
+    assert.equal(loginRes.statusCode, 200);
+    const cookie = loginRes.headers["set-cookie"];
+    assert.ok(cookie);
+
+    // 3. Authenticated GET /api/slots
     const res = await app.inject({
       method: "GET",
       url: "/api/slots",
+      headers: { cookie },
     });
     assert.equal(res.statusCode, 200);
     const slots = res.json();
     assert.ok(Array.isArray(slots));
     assert.equal(slots.length, 4);
 
-    // GET /api/v1/slots/1
+    // 4. Authenticated GET /api/v1/slots/1
     const resSlot = await app.inject({
       method: "GET",
       url: "/api/v1/slots/1",
+      headers: { cookie },
     });
     assert.equal(resSlot.statusCode, 200);
     const slot1 = resSlot.json();
     assert.equal(slot1.id, 1);
     assert.equal(slot1.status, "idle");
 
-    // Invalid slot index
+    // 5. Invalid slot index with auth returns 400
     const resInvalid = await app.inject({
       method: "GET",
       url: "/api/slots/99",
+      headers: { cookie },
     });
     assert.equal(resInvalid.statusCode, 400);
   } finally {

@@ -120,6 +120,21 @@ export async function createServerApp(): Promise<{
   await app.register(fastifyCookie);
   await app.register(authPlugin);
 
+  // Protect all slots and streaming telemetry routes
+  app.addHook("preHandler", async (req, reply) => {
+    const pathname = req.url.split("?")[0] ?? "";
+    if (
+      pathname.startsWith("/api/slots") ||
+      pathname.startsWith("/api/v1/slots") ||
+      pathname.startsWith("/api/events") ||
+      pathname.startsWith("/api/v1/events") ||
+      pathname.startsWith("/api/stream") ||
+      pathname.startsWith("/api/v1/stream")
+    ) {
+      await app.authenticate(req, reply);
+    }
+  });
+
   await app.register(rateLimit, {
     max: 300,
     timeWindow: "1 minute",
@@ -280,8 +295,8 @@ export async function createServerApp(): Promise<{
     });
   }
 
-  app.get("/api/v1/stream", handleGranularStream);
-  app.get("/api/stream", handleGranularStream);
+  app.get("/api/v1/stream", { preHandler: [app.authenticate] }, handleGranularStream);
+  app.get("/api/stream", { preHandler: [app.authenticate] }, handleGranularStream);
 
   // SSE route handler (backward compatible full snapshot for legacy frontend)
   function handleSse(req: FastifyRequest, reply: FastifyReply) {
@@ -302,8 +317,8 @@ export async function createServerApp(): Promise<{
     });
   }
 
-  app.get("/api/events", handleSse);
-  app.get("/api/v1/events", handleSse);
+  app.get("/api/events", { preHandler: [app.authenticate] }, handleSse);
+  app.get("/api/v1/events", { preHandler: [app.authenticate] }, handleSse);
 
   // Favicon handler
   const faviconPath = path.join(PUBLIC_DIR, "favicon.svg");

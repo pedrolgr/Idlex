@@ -22,7 +22,9 @@ import {
   encryptTotpSecret,
   decryptTotpSecret,
 } from "./totp.js";
-import { getEnv } from "@idlex/config";
+import { getEnv, getAdminCredentials, isSaasMode } from "@idlex/config";
+
+const STANDALONE_ADMIN_ID = "00000000-0000-4000-8000-000000000001";
 
 const registerSchema = z.object({
   email: z.string().email().toLowerCase().trim(),
@@ -30,10 +32,11 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email().toLowerCase().trim(),
-  password: z.string().min(1),
+  email: z.string().min(1, "E-mail ou usuário obrigatório").trim(),
+  password: z.string().min(1, "Senha obrigatória"),
   totpCode: z.string().optional(),
 });
+
 
 const verifyEmailSchema = z.object({
   token: z.string().min(16),
@@ -71,6 +74,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     timeWindow: "15 minutes",
   };
 
+  // GET /config - Public configuration
+  app.get("/config", async (_req, reply) => {
+    return reply.status(200).send({
+      mode: env.APP_MODE,
+      registrationEnabled: isSaasMode(env),
+    });
+  });
+
   // POST /register
   app.post(
     "/register",
@@ -80,6 +91,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       },
     },
     async (req, reply) => {
+      if (!isSaasMode(env)) {
+        return reply.status(403).send({
+          error: "O registro de novos usuários está desativado no modo standalone.",
+          code: "REGISTRATION_DISABLED",
+        });
+      }
+
       const parsed = registerSchema.safeParse(req.body);
       if (!parsed.success) {
         return reply.status(400).send({
@@ -217,6 +235,87 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const { email, password, totpCode } = parsed.data;
+
+      // === STANDALONE MODE: Single user authenticated against environment ===
+      if (!isSaasMode(env)) {
+        const { email: adminEmail, password: adminPassword } = getAdminCredentials(env);
+        const normInput = email.toLowerCase().trim();
+        const normAdmin = adminEmail.toLowerCase().trim();
+        const adminUsername = normAdmin.includes("@") ? normAdmin.split("@")[0] : normAdmin;
+
+        const isMatch =
+          normInput === normAdmin ||
+          normInput === adminUsername ||
+          normInput === "admin";
+
+        if (!isMatch || password !== adminPassword) {
+          await dummyVerifyPassword(password);
+          return reply.status(401).send({ error: "Credenciais inválidas" });
+        }
+
+        let adminUserId = STANDALONE_ADMIN_ID;
+        const db = getDb();
+        if (db) {
+          try {
+            const existing = await db
+              .select()
+              .from(users)
+              .where(eq(users.email, normAdmin))
+              .limit(1);
+
+            if (existing[0]) {
+              adminUserId = existing[0].id;
+            } else {
+              const passHash = await hashPassword(adminPassword);
+              const [created] = await db
+                .insert(users)
+                .values({
+                  id: STANDALONE_ADMIN_ID,
+                  email: normAdmin,
+                  passwordHash: passHash,
+                  role: "admin",
+                  emailVerifiedAt: new Date(),
+                })
+                .returning();
+              if (created) adminUserId = created.id;
+            }
+          } catch (e) {
+            // DB fallback
+          }
+        }
+
+        const sessionToken = generateSessionToken();
+        await createSession(adminUserId, sessionToken, {
+          ip: req.ip,
+          userAgent: req.headers["user-agent"],
+          email: normAdmin,
+          role: "admin",
+        });
+
+        const isProduction = env.NODE_ENV === "production";
+        reply.setCookie(SESSION_COOKIE_NAME, sessionToken, {
+          path: "/",
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: "lax",
+          maxAge: SESSION_TTL_SECONDS,
+        });
+
+        return reply.status(200).send({
+          message: "Login realizado com sucesso",
+          user: {
+            id: adminUserId,
+            email: normAdmin,
+            role: "admin",
+            emailVerified: true,
+            twoFactorEnabled: false,
+            screens: 4,
+            plan: "standalone",
+          },
+        });
+      }
+
+      // === SAAS MODE: Multi-user database authentication ===
       const db = getDb();
       if (!db) return reply.status(503).send({ error: "Banco de dados indisponível" });
 
@@ -314,6 +413,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   // POST /forgot-password
   app.post("/forgot-password", async (req, reply) => {
+    if (!isSaasMode(env)) {
+      return reply.status(403).send({
+        error:
+          "Recuperação de senha não disponível no modo standalone. Altere as credenciais nas variáveis de ambiente da VM.",
+        code: "PASSWORD_RESET_DISABLED",
+      });
+    }
+
     const parsed = forgotPasswordSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.status(200).send({
@@ -357,6 +464,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   // POST /reset-password
   app.post("/reset-password", async (req, reply) => {
+    if (!isSaasMode(env)) {
+      return reply.status(403).send({
+        error:
+          "Redefinição de senha não disponível no modo standalone.",
+        code: "PASSWORD_RESET_DISABLED",
+      });
+    }
+
     const parsed = resetPasswordSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.status(400).send({
@@ -425,6 +540,20 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     },
     async (req, reply) => {
       const session = req.userSession!;
+
+      if (!isSaasMode(env)) {
+        return reply.status(200).send({
+          user: {
+            id: session.userId,
+            email: session.email,
+            role: session.role || "admin",
+            emailVerified: true,
+            plan: "standalone",
+            screens: 4,
+          },
+        });
+      }
+
       const db = getDb();
 
       let screens = 1;

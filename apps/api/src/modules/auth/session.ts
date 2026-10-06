@@ -39,21 +39,42 @@ declare module "fastify" {
 const SESSION_COOKIE_NAME = "__Host-idlex_sid";
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
+const inMemorySessions = new Map<
+  string,
+  { session: SessionData; expiresAt: number }
+>();
+
 export async function createSession(
   userId: string,
   token: string,
-  metadata: { ip?: string; userAgent?: string },
+  metadata: { ip?: string; userAgent?: string; email?: string; role?: string },
 ): Promise<void> {
   const tokenHash = hashToken(token);
   const redis = getRedisClient();
   const db = getDb();
   const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
 
+  // In-memory fallback (useful for standalone mode or offline cache)
+  inMemorySessions.set(tokenHash, {
+    session: {
+      userId,
+      email: metadata.email || "admin@idlex.local",
+      role: metadata.role || "user",
+      emailVerified: true,
+      createdAt: new Date().toISOString(),
+      ip: metadata.ip,
+      userAgent: metadata.userAgent,
+    },
+    expiresAt: expiresAt.getTime(),
+  });
+
   // 1. Redis
   if (redis) {
     try {
       const payload = JSON.stringify({
         userId,
+        email: metadata.email,
+        role: metadata.role,
         ip: metadata.ip,
         userAgent: metadata.userAgent,
         createdAt: new Date().toISOString(),
@@ -82,6 +103,7 @@ export async function createSession(
 
 export async function revokeSession(token: string): Promise<void> {
   const tokenHash = hashToken(token);
+  inMemorySessions.delete(tokenHash);
   const redis = getRedisClient();
   const db = getDb();
 
@@ -102,6 +124,11 @@ export async function revokeSession(token: string): Promise<void> {
 }
 
 export async function revokeAllUserSessions(userId: string): Promise<void> {
+  for (const [hash, entry] of inMemorySessions.entries()) {
+    if (entry.session.userId === userId) {
+      inMemorySessions.delete(hash);
+    }
+  }
   const db = getDb();
   if (db) {
     try {
@@ -195,8 +222,14 @@ export async function getSession(
         userAgent: s.userAgent ?? undefined,
       };
     } catch {
-      return null;
+      // DB error fallback
     }
+  }
+
+  // 3. Fallback to in-memory session (standalone / offline)
+  const inMem = inMemorySessions.get(tokenHash);
+  if (inMem && inMem.expiresAt > Date.now()) {
+    return inMem.session;
   }
 
   return null;
