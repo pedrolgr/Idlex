@@ -112,24 +112,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#13171f] border border-[#242b38] rounded-xl w-full max-w-md overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-[#13171f] border border-[#242b38] rounded-xl w-full max-w-md overflow-hidden shadow-2xl my-auto">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#242b38]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#242b38]">
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-[#f5c518]" />
-            <h2 className="font-rpg text-lg font-bold text-[#f5c518]">Conta Idlex</h2>
+            <h2 className="font-rpg text-base sm:text-lg font-bold text-[#f5c518]">Conta Idlex</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-[#8b949e] hover:text-white transition-colors"
+            className="text-[#8b949e] hover:text-white transition-colors p-1"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6 max-h-[85vh] overflow-y-auto">
           {feedback && (
             <div
               className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-sm font-medium ${
@@ -145,19 +145,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {currentUser ? (
             /* Logged View */
-            <div className="space-y-6">
-              <div className="bg-[#0d1016] border border-[#242b38] p-4 rounded-xl flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#f5c518]/10 border border-[#f5c518]/30 flex items-center justify-center text-[#f5c518]">
-                  <User className="w-6 h-6" />
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-[#0d1016] border border-[#242b38] p-3.5 sm:p-4 rounded-xl flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#f5c518]/10 border border-[#f5c518]/30 flex items-center justify-center text-[#f5c518] shrink-0">
+                  <User className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-white">{currentUser.email}</h3>
-                  <div className="flex gap-2 mt-1">
-                    <span className="text-xs bg-[#f5c518]/15 text-[#f5c518] px-2 py-0.5 rounded border border-[#f5c518]/30 font-medium">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-white text-sm sm:text-base truncate">{currentUser.email}</h3>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-1">
+                    <span className="text-[11px] sm:text-xs bg-[#f5c518]/15 text-[#f5c518] px-2 py-0.5 rounded border border-[#f5c518]/30 font-medium">
                       Plano {currentUser.plan || "screens1"}
                     </span>
-                    <span className="text-xs bg-[#3498db]/15 text-[#3498db] px-2 py-0.5 rounded border border-[#3498db]/30 font-medium">
-                      {currentUser.screens || 1} Telas simultâneas
+                    <span className="text-[11px] sm:text-xs bg-[#3498db]/15 text-[#3498db] px-2 py-0.5 rounded border border-[#3498db]/30 font-medium">
+                      {currentUser.screens || 1} Telas
                     </span>
                   </div>
                 </div>
