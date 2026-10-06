@@ -91,17 +91,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#0a0c10] flex flex-col items-center justify-center p-3 sm:p-4 relative overflow-hidden">
       {/* Background Glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#f5c518]/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-[#f5c518]/5 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-[#13171f] border border-[#242b38] rounded-2xl shadow-2xl p-8 relative z-10">
+      <div className="w-full max-w-md bg-[#13171f] border border-[#242b38] rounded-2xl shadow-2xl p-5 sm:p-8 relative z-10">
         {/* Brand Header */}
-        <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-[#0d1016] border border-[#242b38] flex items-center justify-center text-3xl shadow-inner mb-3">
+        <div className="flex flex-col items-center text-center mb-5 sm:mb-6">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#0d1016] border border-[#242b38] flex items-center justify-center text-2xl sm:text-3xl shadow-inner mb-2.5 sm:mb-3">
             🗡️
           </div>
-          <h1 className="font-rpg text-2xl font-bold tracking-widest text-[#f5c518] leading-tight">
+          <h1 className="font-rpg text-xl sm:text-2xl font-bold tracking-wider sm:tracking-widest text-[#f5c518] leading-tight">
             IDLEX HUNTERA
           </h1>
           <p className="text-xs text-[#8b949e] font-semibold mt-1">
@@ -111,7 +111,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           {/* Mode Tag */}
           <div className="mt-3">
             {isStandalone ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#f5c518]/10 text-[#f5c518] border border-[#f5c518]/30">
+              <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-[#f5c518]/10 text-[#f5c518] border border-[#f5c518]/30">
                 <Server className="w-3.5 h-3.5" />
                 Modo Standalone (Acesso Restrito)
               </span>
