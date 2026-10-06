@@ -3505,3 +3505,191 @@ body {
   margin-top: 10px;
 }
 
+/* ==========================================================================
+   Mobile Responsive Adjustments (< 768px and < 480px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* Header */
+  .top-nav {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-icon {
+    font-size: 20px;
+  }
+
+  .brand-text h1 {
+    font-size: 16px;
+  }
+
+  .brand-text .subtext {
+    display: none;
+  }
+
+  .layout-controls {
+    gap: 8px;
+  }
+
+  .global-party-nav-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .global-party-nav-btn .party-nav-text {
+    display: none;
+  }
+
+  .view-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .view-btn svg + span,
+  .view-btn {
+    font-size: 0;
+  }
+
+  .view-btn svg {
+    margin: 0;
+  }
+
+  .connection-pill {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .auth-user-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .auth-user-btn .auth-text {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Abas */
+  .tabs-bar {
+    padding: 0 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-btn {
+    padding: 10px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  /* Slots Container */
+  .slots-grid {
+    padding: 10px;
+    gap: 12px;
+  }
+
+  /* Banner Global Party */
+  .global-party-banner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .global-party-banner-members {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modais */
+  .modal-backdrop {
+    padding: 8px;
+  }
+
+  .modal-dialog {
+    max-width: 100%;
+    margin: auto 0;
+  }
+
+  .modal-content {
+    padding: 12px;
+    max-height: 85vh;
+  }
+
+  .condition-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .cond-attr-select,
+  .cond-op-select {
+    flex: 1 1 45%;
+  }
+
+  .cond-val-input {
+    flex: 1 1 30%;
+  }
+
+  .modal-footer-btns {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .modal-right-btns {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .btn-clear-slot {
+    width: 100%;
+  }
+
+  /* Modal de Party e Amigos */
+  .party-invite-input-row {
+    flex-direction: column;
+  }
+
+  .btn-invite-sm {
+    width: 100%;
+    padding: 8px;
+  }
+
+  /* Modal de Autenticação */
+  .auth-modal-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .auth-modal-body {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .slots-grid {
+    padding: 6px;
+    gap: 10px;
+  }
+
+  .slot-card {
+    border-radius: var(--radius-md);
+  }
+
+  .slot-header {
+    padding: 8px 12px;
+  }
+
+  .action-type-pills {
+    flex-direction: column;
+  }
+}
+
+
