@@ -106,6 +106,7 @@ export async function createServerApp(): Promise<{
         frameAncestors: ["'none'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         scriptSrcAttr: ["'self'", "'unsafe-inline'"],
+        upgradeInsecureRequests: null,
       },
     },
   });
