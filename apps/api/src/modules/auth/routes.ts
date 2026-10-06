@@ -241,17 +241,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         const { email: adminEmail, password: adminPassword } = getAdminCredentials(env);
         const normInput = email.toLowerCase().trim();
         const normAdmin = adminEmail.toLowerCase().trim();
-        const adminUsername = normAdmin.includes("@") ? normAdmin.split("@")[0] : normAdmin;
 
-        const isMatch =
-          normInput === normAdmin ||
-          normInput === adminUsername ||
-          normInput === "admin";
+        const isMatch = normAdmin && normInput === normAdmin;
 
-        if (!isMatch || password !== adminPassword) {
+        if (!isMatch || !password || password !== adminPassword) {
           await dummyVerifyPassword(password);
           return reply.status(401).send({ error: "Credenciais inválidas" });
         }
+
 
         let adminUserId = STANDALONE_ADMIN_ID;
         const db = getDb();

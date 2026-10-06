@@ -58,7 +58,7 @@ export async function createSession(
   inMemorySessions.set(tokenHash, {
     session: {
       userId,
-      email: metadata.email || "admin@idlex.local",
+      email: metadata.email || "",
       role: metadata.role || "user",
       emailVerified: true,
       createdAt: new Date().toISOString(),

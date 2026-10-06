@@ -1,4 +1,9 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
@@ -41,8 +46,8 @@ export function resetCachedEnv(): void {
 }
 
 export function getAdminCredentials(env: Env = getEnv()): { email: string; password: string } {
-  const email = (env.ADMIN_EMAIL || env.HUNTERA_USERNAME || "admin@idlex.local").trim();
-  const password = env.ADMIN_PASSWORD || env.HUNTERA_PASSWORD || "admin123";
+  const email = (env.ADMIN_EMAIL || env.HUNTERA_USERNAME || "").trim();
+  const password = env.ADMIN_PASSWORD || env.HUNTERA_PASSWORD || "";
   return { email, password };
 }
 
@@ -50,12 +55,34 @@ export function isSaasMode(env: Env = getEnv()): boolean {
   return env.APP_MODE === "saas";
 }
 
+function tryLoadEnv(): void {
+  if (typeof process.loadEnvFile === "function") {
+    const candidatePaths = [
+      path.resolve(process.cwd(), ".env"),
+      path.resolve(process.cwd(), "../../.env"),
+      path.resolve(__dirname, "../../../.env"),
+    ];
+    for (const envPath of candidatePaths) {
+      if (fs.existsSync(envPath)) {
+        try {
+          process.loadEnvFile(envPath);
+          break;
+        } catch {
+          // ignore parsing error if already loaded
+        }
+      }
+    }
+  }
+}
+
 export function getEnv(override?: Record<string, unknown>): Env {
+  tryLoadEnv();
   if (override) {
     return envSchema.parse({ ...process.env, ...override });
   }
   if (!cachedEnv) {
     const result = envSchema.safeParse(process.env);
+
     if (!result.success) {
       console.error(
         "❌ Invalid environment variables:",

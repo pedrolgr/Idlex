@@ -181,15 +181,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
-                {isStandalone ? "Usuário ou E-mail da VM" : "E-mail"}
+                E-mail
               </label>
               <div className="relative">
                 <input
-                  type="text"
+                  type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={isStandalone ? "admin ou seu-email@exemplo.com" : "seu@email.com"}
+                  placeholder="seu-email@exemplo.com"
                   className="w-full bg-[#0d1016] border border-[#242b38] rounded-lg px-3.5 py-2.5 pl-10 text-sm text-white placeholder-[#8b949e]/50 focus:outline-none focus:border-[#f5c518] transition-colors"
                 />
                 <User className="w-4 h-4 text-[#8b949e] absolute left-3.5 top-3" />

@@ -217,14 +217,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
-                      {isStandalone ? "Usuário ou E-mail" : "E-mail"}
+                      E-mail
                     </label>
                     <input
-                      type="text"
+                      type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      placeholder={isStandalone ? "admin ou seu-email@dominio.com" : "seu-email@dominio.com"}
+                      placeholder="seu-email@dominio.com"
                       className="w-full bg-[#0d1016] border border-[#242b38] focus:border-[#f5c518] rounded-lg px-3 py-2 text-white placeholder-[#586069] outline-none text-sm"
                     />
                   </div>
