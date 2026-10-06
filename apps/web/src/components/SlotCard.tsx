@@ -135,25 +135,27 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
   return (
     <div className="bg-[#13171f] hover:bg-[#181d27] border border-[#242b38] hover:border-[#d4af37]/60 rounded-xl overflow-hidden transition-all shadow-xl flex flex-col justify-between">
       {/* Slot Header */}
-      <div className="px-5 py-4 border-b border-[#242b38] flex items-center justify-between bg-[#0d1016]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#f5c518]/15 border border-[#f5c518]/30 flex items-center justify-center font-rpg font-bold text-[#f5c518]">
+      <div className="px-3.5 sm:px-5 py-3 sm:py-4 border-b border-[#242b38] flex items-center justify-between gap-2 bg-[#0d1016]">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-7 h-7 sm:w-8 h-8 rounded-lg bg-[#f5c518]/15 border border-[#f5c518]/30 flex items-center justify-center font-rpg font-bold text-[#f5c518] text-xs sm:text-base shrink-0">
             {slot.id}
           </div>
-          <div>
-            <h3 className="font-bold text-white text-base leading-tight">
+          <div className="min-w-0">
+            <h3 className="font-bold text-white text-sm sm:text-base leading-tight truncate">
               {char ? char.name : `Tela ${slot.id}`}
             </h3>
-            <span className="text-xs text-[#8b949e]">
+            <span className="text-[11px] sm:text-xs text-[#8b949e] truncate block">
               {char ? `Nível ${char.level} • ${char.vocation}` : "Nenhum personagem ativo"}
             </span>
           </div>
         </div>
-        {renderStatusBadge()}
+        <div className="shrink-0">
+          {renderStatusBadge()}
+        </div>
       </div>
 
       {/* Slot Body */}
-      <div className="p-5 flex-1">
+      <div className="p-3.5 sm:p-5 flex-1">
         {slot.status === "idle" ? (
           /* Login to Huntera Form */
           <form onSubmit={handleSlotLogin} className="space-y-3.5 my-2">
@@ -303,11 +305,11 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
 
       {/* Slot Footer Controls */}
       {slot.status !== "idle" && (
-        <div className="px-5 py-3 border-t border-[#242b38] bg-[#0d1016] flex items-center justify-between gap-2">
+        <div className="px-3.5 sm:px-5 py-3 border-t border-[#242b38] bg-[#0d1016] flex flex-wrap items-center justify-between gap-2">
           {slot.status === "hunting" ? (
             <button
               onClick={handleStopHunt}
-              className="flex-1 py-1.5 px-3 bg-red-950/40 hover:bg-red-900/50 border border-red-700/50 text-red-300 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all"
+              className="flex-1 min-w-[100px] py-2 sm:py-1.5 px-3 bg-red-950/40 hover:bg-red-900/50 border border-red-700/50 text-red-300 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all"
             >
               <Square className="w-3.5 h-3.5" />
               Parar Hunt
@@ -315,7 +317,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
           ) : (
             <button
               onClick={handleStartHunt}
-              className="flex-1 py-1.5 px-3 bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-600/50 text-emerald-300 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all"
+              className="flex-1 min-w-[100px] py-2 sm:py-1.5 px-3 bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-600/50 text-emerald-300 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all"
             >
               <Play className="w-3.5 h-3.5" />
               Iniciar Hunt
@@ -325,7 +327,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
           <button
             onClick={handleBuyBlessings}
             title="Comprar 5 Bênçãos"
-            className="py-1.5 px-3 bg-[#f5c518]/10 hover:bg-[#f5c518]/20 border border-[#f5c518]/30 text-[#f5c518] text-xs font-semibold rounded-lg flex items-center gap-1 transition-all"
+            className="py-2 sm:py-1.5 px-3 bg-[#f5c518]/10 hover:bg-[#f5c518]/20 border border-[#f5c518]/30 text-[#f5c518] text-xs font-semibold rounded-lg flex items-center gap-1 transition-all"
           >
             <Shield className="w-3.5 h-3.5" />
             Bênçãos
@@ -334,7 +336,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
           <button
             onClick={handleSlotLogout}
             title="Desconectar Slot"
-            className="p-1.5 text-[#8b949e] hover:text-red-400 transition-colors"
+            className="p-2 sm:p-1.5 text-[#8b949e] hover:text-red-400 transition-colors rounded-lg bg-[#13171f] sm:bg-transparent border border-[#242b38] sm:border-transparent"
           >
             <LogOut className="w-4 h-4" />
           </button>
