@@ -36,7 +36,7 @@ declare module "fastify" {
   }
 }
 
-const SESSION_COOKIE_NAME = "__Host-idlex_sid";
+const SESSION_COOKIE_NAME = "idlex_sid";
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 const inMemorySessions = new Map<

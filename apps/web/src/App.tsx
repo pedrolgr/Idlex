@@ -5,6 +5,7 @@ import { SlotCard } from "./components/SlotCard.tsx";
 import { AuthModal } from "./components/AuthModal.tsx";
 import { LoginScreen } from "./components/LoginScreen.tsx";
 import { useSSE } from "./hooks/useSSE.ts";
+import { authFetch } from "./api.ts";
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -31,7 +32,7 @@ export function App() {
         }
 
         // 2. Fetch current session if exists
-        const meRes = await fetch("/api/v1/auth/me").catch(() => null);
+        const meRes = await authFetch("/api/v1/auth/me").catch(() => null);
         if (meRes && meRes.ok) {
           const meData = await meRes.json();
           if (meData?.user) {

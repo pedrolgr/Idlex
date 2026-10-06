@@ -300,6 +300,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
         return reply.status(200).send({
           message: "Login realizado com sucesso",
+          token: sessionToken,
           user: {
             id: adminUserId,
             email: normAdmin,
@@ -378,6 +379,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
       return reply.status(200).send({
         message: "Login realizado com sucesso",
+        token: sessionToken,
         user: {
           id: user.id,
           email: user.email,

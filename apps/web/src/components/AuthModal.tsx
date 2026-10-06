@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { UserProfile } from "../types/index.ts";
 import { User, LogIn, LogOut, Shield, X, CheckCircle, AlertCircle } from "lucide-react";
+import { authFetch, setAuthToken } from "../api.ts";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setFeedback(null);
 
     try {
-      const res = await fetch("/api/v1/auth/login", {
+      const res = await authFetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, totpCode: totpCode || undefined }),
@@ -53,6 +54,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setFeedback({ msg: data.error || "Credenciais inválidas.", isError: true });
         }
         return;
+      }
+
+      if (data.token) {
+        setAuthToken(data.token);
       }
 
       setFeedback({ msg: "Login realizado com sucesso!", isError: false });
@@ -77,7 +82,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setFeedback(null);
 
     try {
-      const res = await fetch("/api/v1/auth/register", {
+      const res = await authFetch("/api/v1/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -102,10 +107,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/v1/auth/logout", { method: "POST" });
+      await authFetch("/api/v1/auth/logout", { method: "POST" });
+      setAuthToken(null);
       onUserChange(null);
       onClose();
     } catch {
+      setAuthToken(null);
       onUserChange(null);
       onClose();
     }
@@ -214,13 +221,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               )}
 
               {tab === "login" || isStandalone ? (
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleLogin} method="post" autoComplete="on" className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
+                    <label htmlFor="auth-modal-login-email" className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
                       E-mail
                     </label>
                     <input
+                      id="auth-modal-login-email"
+                      name="username"
                       type="email"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck="false"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -230,11 +243,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
+                    <label htmlFor="auth-modal-login-password" className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
                       Senha
                     </label>
                     <input
+                      id="auth-modal-login-password"
+                      name="password"
                       type="password"
+                      autoComplete="current-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -245,11 +261,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                   {showTotp && (
                     <div>
-                      <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
+                      <label htmlFor="auth-modal-totp" className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
                         Código 2FA (6 dígitos)
                       </label>
                       <input
+                        id="auth-modal-totp"
+                        name="one-time-code"
                         type="text"
+                        autoComplete="one-time-code"
+                        inputMode="numeric"
                         maxLength={6}
                         value={totpCode}
                         onChange={(e) => setTotpCode(e.target.value)}
@@ -269,13 +289,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </button>
                 </form>
               ) : (
-                <form onSubmit={handleRegister} className="space-y-4">
+                <form onSubmit={handleRegister} method="post" autoComplete="on" className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
+                    <label htmlFor="auth-modal-register-email" className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
                       E-mail
                     </label>
                     <input
+                      id="auth-modal-register-email"
+                      name="username"
                       type="email"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck="false"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -285,11 +311,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
+                    <label htmlFor="auth-modal-register-password" className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
                       Senha (mínimo 10 caracteres)
                     </label>
                     <input
+                      id="auth-modal-register-password"
+                      name="new-password"
                       type="password"
+                      autoComplete="new-password"
                       value={password}
                       minLength={10}
                       onChange={(e) => setPassword(e.target.value)}

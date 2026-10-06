@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { UserProfile } from "../types/index.ts";
 import { Shield, Lock, User, LogIn, AlertCircle, CheckCircle, Server } from "lucide-react";
+import { setAuthToken } from "../api.ts";
 
 interface LoginScreenProps {
   appMode: string;
@@ -32,6 +33,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       const res = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password, totpCode: totpCode || undefined }),
       });
       const data = await res.json();
@@ -46,10 +48,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         return;
       }
 
+      if (data.token) {
+        setAuthToken(data.token);
+      }
+
       setFeedback({ msg: "Autenticado com sucesso! Redirecionando...", isError: false });
       setTimeout(() => {
         onLoginSuccess(data.user);
-      }, 400);
+      }, 300);
     } catch {
       setFeedback({ msg: "Não foi possível conectar ao servidor.", isError: true });
     } finally {
@@ -178,15 +184,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
         {/* Forms */}
         {tab === "login" || isStandalone ? (
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} method="post" autoComplete="on" className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
+              <label htmlFor="login-username" className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
                 E-mail
               </label>
               <div className="relative">
                 <input
+                  id="login-username"
+                  name="username"
                   type="email"
                   required
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu-email@exemplo.com"
@@ -197,13 +209,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
+              <label htmlFor="login-password" className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
                 Senha
               </label>
               <div className="relative">
                 <input
+                  id="login-password"
+                  name="password"
                   type="password"
                   required
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -215,13 +230,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
             {showTotp && (
               <div>
-                <label className="block text-xs font-semibold text-[#f5c518] uppercase mb-1.5">
+                <label htmlFor="login-totp" className="block text-xs font-semibold text-[#f5c518] uppercase mb-1.5">
                   Autenticação 2FA (6 dígitos)
                 </label>
                 <div className="relative">
                   <input
+                    id="login-totp"
+                    name="one-time-code"
                     type="text"
                     maxLength={6}
+                    autoComplete="one-time-code"
                     value={totpCode}
                     onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
                     placeholder="123456"
@@ -248,15 +266,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </button>
           </form>
         ) : (
-          <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleRegister} method="post" autoComplete="on" className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
+              <label htmlFor="register-username" className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
                 E-mail para Cadastro
               </label>
               <div className="relative">
                 <input
+                  id="register-username"
+                  name="username"
                   type="email"
                   required
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
@@ -267,14 +291,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
+              <label htmlFor="register-password" className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
                 Senha (mínimo 10 caracteres)
               </label>
               <div className="relative">
                 <input
+                  id="register-password"
+                  name="password"
                   type="password"
                   required
                   minLength={10}
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"

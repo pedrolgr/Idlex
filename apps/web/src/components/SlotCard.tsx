@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { SlotData } from "../types/index.ts";
+import { authFetch } from "../api.ts";
 import {
   Swords,
   Heart,
@@ -38,7 +39,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
     setFeedback(null);
     try {
       // 1. Connect slot
-      const res = await fetch(`/api/slots/${slot.id}/login`, {
+      const res = await authFetch(`/api/slots/${slot.id}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
@@ -51,7 +52,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
 
       // 2. Save preference if remember is checked (Phase 4)
       if (remember) {
-        await fetch(`/api/v1/accounts/${slot.id}`, {
+        await authFetch(`/api/v1/accounts/${slot.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: loginEmail, remember: true }),
@@ -67,7 +68,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
   const handleSlotLogout = async () => {
     setLoading(true);
     try {
-      await fetch(`/api/slots/${slot.id}/logout`, { method: "POST" });
+      await authFetch(`/api/slots/${slot.id}/logout`, { method: "POST" });
     } finally {
       setLoading(false);
     }
@@ -75,7 +76,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
 
   const handleStartHunt = async () => {
     try {
-      await fetch(`/api/slots/${slot.id}/hunt/start`, {
+      await authFetch(`/api/slots/${slot.id}/hunt/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ huntId: "default", tier: 0 }),
@@ -85,13 +86,13 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
 
   const handleStopHunt = async () => {
     try {
-      await fetch(`/api/slots/${slot.id}/hunt/leave`, { method: "POST" });
+      await authFetch(`/api/slots/${slot.id}/hunt/leave`, { method: "POST" });
     } catch {}
   };
 
   const handleBuyBlessings = async () => {
     try {
-      await fetch(`/api/slots/${slot.id}/blessings/buy`, {
+      await authFetch(`/api/slots/${slot.id}/blessings/buy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: "all" }),
@@ -158,14 +159,20 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
       <div className="p-3.5 sm:p-5 flex-1">
         {slot.status === "idle" ? (
           /* Login to Huntera Form */
-          <form onSubmit={handleSlotLogin} className="space-y-3.5 my-2">
+          <form onSubmit={handleSlotLogin} method="post" autoComplete="on" className="space-y-3.5 my-2">
             <div>
-              <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1">
+              <label htmlFor={`slot-${slot.id}-email`} className="block text-xs font-semibold text-[#8b949e] uppercase mb-1">
                 E-mail Huntera
               </label>
               <input
+                id={`slot-${slot.id}-email`}
+                name="username"
                 type="email"
                 required
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 placeholder="conta@huntera.com.br"
@@ -173,12 +180,15 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1">
+              <label htmlFor={`slot-${slot.id}-password`} className="block text-xs font-semibold text-[#8b949e] uppercase mb-1">
                 Senha Huntera
               </label>
               <input
+                id={`slot-${slot.id}-password`}
+                name="password"
                 type="password"
                 required
+                autoComplete="current-password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 placeholder="••••••••••"
