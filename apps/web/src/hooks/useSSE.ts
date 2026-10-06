@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { SlotData } from "../types/index.ts";
 
-export function useSSE() {
+export function useSSE(enabled = true) {
   const [slots, setSlots] = useState<SlotData[]>([
     { id: 1, status: "idle", errorMessage: null, account: null, character: null, session: { huntActive: false, elapsedMs: 0, kills: 0 }, catalogCount: 0 },
     { id: 2, status: "idle", errorMessage: null, account: null, character: null, session: { huntActive: false, elapsedMs: 0, kills: 0 }, catalogCount: 0 },
@@ -11,6 +11,11 @@ export function useSSE() {
   const [isLive, setIsLive] = useState(false);
 
   useEffect(() => {
+    if (!enabled) {
+      setIsLive(false);
+      return;
+    }
+
     const es = new EventSource("/api/events");
 
     es.onopen = () => {
@@ -35,7 +40,7 @@ export function useSSE() {
     return () => {
       es.close();
     };
-  }, []);
+  }, [enabled]);
 
   return { slots, isLive };
 }

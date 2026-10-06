@@ -3,27 +3,75 @@ import { UserProfile } from "./types/index.ts";
 import { Header } from "./components/Header.tsx";
 import { SlotCard } from "./components/SlotCard.tsx";
 import { AuthModal } from "./components/AuthModal.tsx";
+import { LoginScreen } from "./components/LoginScreen.tsx";
 import { useSSE } from "./hooks/useSSE.ts";
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [appMode, setAppMode] = useState<string>("standalone");
+  const [registrationEnabled, setRegistrationEnabled] = useState<boolean>(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "tabs">("grid");
   const [activeTab, setActiveTab] = useState(1);
-  const { slots, isLive } = useSSE();
 
-  // Check user session on initial load
+  // SSE only connects when the user is logged in
+  const { slots, isLive } = useSSE(!!currentUser);
+
+  // Check config and user session on initial load
   useEffect(() => {
-    fetch("/api/v1/auth/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.user) {
-          setCurrentUser(data.user);
+    async function initAuth() {
+      try {
+        // 1. Fetch public config (standalone vs saas)
+        const configRes = await fetch("/api/v1/auth/config").catch(() => null);
+        if (configRes && configRes.ok) {
+          const configData = await configRes.json();
+          if (configData.mode) setAppMode(configData.mode);
+          setRegistrationEnabled(Boolean(configData.registrationEnabled));
         }
-      })
-      .catch(() => {});
+
+        // 2. Fetch current session if exists
+        const meRes = await fetch("/api/v1/auth/me").catch(() => null);
+        if (meRes && meRes.ok) {
+          const meData = await meRes.json();
+          if (meData?.user) {
+            setCurrentUser(meData.user);
+          }
+        }
+      } catch {
+        // Network or offline error
+      } finally {
+        setIsLoadingAuth(false);
+      }
+    }
+
+    void initAuth();
   }, []);
 
+  // Initial loading state
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-[#0a0c10] flex flex-col items-center justify-center p-4">
+        <div className="w-10 h-10 border-3 border-[#f5c518] border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm font-semibold text-[#8b949e] font-rpg tracking-wider">
+          Carregando Idlex...
+        </p>
+      </div>
+    );
+  }
+
+  // Not authenticated: render the Login screen
+  if (!currentUser) {
+    return (
+      <LoginScreen
+        appMode={appMode}
+        registrationEnabled={registrationEnabled}
+        onLoginSuccess={setCurrentUser}
+      />
+    );
+  }
+
+  // Authenticated: render the main multi-box dashboard
   return (
     <div className="min-h-screen bg-[#0a0c10] flex flex-col">
       <Header
@@ -80,6 +128,8 @@ export function App() {
         onClose={() => setIsAuthOpen(false)}
         currentUser={currentUser}
         onUserChange={setCurrentUser}
+        appMode={appMode}
+        registrationEnabled={registrationEnabled}
       />
     </div>
   );

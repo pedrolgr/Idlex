@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/components/authmodal.tsx","./src/components/header.tsx","./src/components/slotcard.tsx","./src/hooks/usesse.ts","./src/types/index.ts"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/authmodal.tsx","./src/components/errorboundary.tsx","./src/components/header.tsx","./src/components/loginscreen.tsx","./src/components/slotcard.tsx","./src/hooks/usesse.ts","./src/types/index.ts"],"version":"5.9.3"}

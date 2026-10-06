@@ -265,7 +265,9 @@ export const SlotCard: React.FC<SlotCardProps> = ({ slot }) => {
                 <span className="text-[#8b949e] flex items-center gap-1 mb-0.5">
                   <Swords className="w-3.5 h-3.5 text-[#f5c518]" /> Monstros
                 </span>
-                <span className="font-bold text-white text-sm">{sess?.kills || 0} abatidos</span>
+                <span className="font-bold text-white text-sm">
+                  {sess?.monsterDeaths ?? sess?.kills ?? 0} abatidos
+                </span>
               </div>
 
               <div className="bg-[#0d1016] p-2.5 rounded-lg border border-[#242b38]">

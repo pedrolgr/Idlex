@@ -30,7 +30,8 @@ export interface HuntSessionData {
   huntActive: boolean;
   huntName?: string;
   elapsedMs: number;
-  kills: number;
+  kills?: number;
+  monsterDeaths?: number;
   killsDetailed?: Array<{ name: string; count: number; bestiaryKills?: number }>;
   loot?: Array<{ itemId: number; name: string; count: number; value: number }>;
   suppliesUsed?: Array<{ itemId: number; name: string; count: number; totalCost: number }>;

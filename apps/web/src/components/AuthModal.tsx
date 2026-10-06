@@ -7,6 +7,8 @@ interface AuthModalProps {
   onClose: () => void;
   currentUser: UserProfile | null;
   onUserChange: (user: UserProfile | null) => void;
+  appMode?: string;
+  registrationEnabled?: boolean;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -14,6 +16,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   currentUser,
   onUserChange,
+  appMode = "standalone",
+  registrationEnabled = false,
 }) => {
   const [tab, setTab] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -22,6 +26,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [showTotp, setShowTotp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ msg: string; isError: boolean } | null>(null);
+
+  const isStandalone = appMode !== "saas" || !registrationEnabled;
+
 
   if (!isOpen) return null;
 
@@ -167,49 +174,57 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           ) : (
             /* Guest / Form View */
             <div>
-              <div className="flex border-b border-[#242b38] mb-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTab("login");
-                    setFeedback(null);
-                  }}
-                  className={`flex-1 pb-3 font-semibold text-sm transition-all border-b-2 ${
-                    tab === "login"
-                      ? "border-[#f5c518] text-[#f5c518]"
-                      : "border-transparent text-[#8b949e] hover:text-white"
-                  }`}
-                >
-                  Entrar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTab("register");
-                    setFeedback(null);
-                  }}
-                  className={`flex-1 pb-3 font-semibold text-sm transition-all border-b-2 ${
-                    tab === "register"
-                      ? "border-[#f5c518] text-[#f5c518]"
-                      : "border-transparent text-[#8b949e] hover:text-white"
-                  }`}
-                >
-                  Criar Conta
-                </button>
-              </div>
+              {!isStandalone ? (
+                <div className="flex border-b border-[#242b38] mb-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab("login");
+                      setFeedback(null);
+                    }}
+                    className={`flex-1 pb-3 font-semibold text-sm transition-all border-b-2 ${
+                      tab === "login"
+                        ? "border-[#f5c518] text-[#f5c518]"
+                        : "border-transparent text-[#8b949e] hover:text-white"
+                    }`}
+                  >
+                    Entrar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab("register");
+                      setFeedback(null);
+                    }}
+                    className={`flex-1 pb-3 font-semibold text-sm transition-all border-b-2 ${
+                      tab === "register"
+                        ? "border-[#f5c518] text-[#f5c518]"
+                        : "border-transparent text-[#8b949e] hover:text-white"
+                    }`}
+                  >
+                    Criar Conta
+                  </button>
+                </div>
+              ) : (
+                <div className="mb-6 p-2 rounded-lg bg-[#0d1016] border border-[#242b38] text-center">
+                  <span className="text-xs font-semibold text-[#f5c518]">
+                    Modo Standalone · Acesso Restrito
+                  </span>
+                </div>
+              )}
 
-              {tab === "login" ? (
+              {tab === "login" || isStandalone ? (
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-[#8b949e] uppercase mb-1.5">
-                      E-mail
+                      {isStandalone ? "Usuário ou E-mail" : "E-mail"}
                     </label>
                     <input
-                      type="email"
+                      type="text"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      placeholder="seu-email@dominio.com"
+                      placeholder={isStandalone ? "admin ou seu-email@dominio.com" : "seu-email@dominio.com"}
                       className="w-full bg-[#0d1016] border border-[#242b38] focus:border-[#f5c518] rounded-lg px-3 py-2 text-white placeholder-[#586069] outline-none text-sm"
                     />
                   </div>
