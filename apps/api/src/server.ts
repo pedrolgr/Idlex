@@ -112,12 +112,35 @@ export async function createServerApp(): Promise<{
   });
 
   await app.register(cors, {
-    origin: [env.APP_ORIGIN, "http://localhost:3000", "http://127.0.0.1:3000"],
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      const isAllowed =
+        origin === env.APP_ORIGIN ||
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1") ||
+        origin.includes("sslip.io");
+      cb(null, isAllowed);
+    },
     credentials: true,
   });
 
   await app.register(fastifyCookie);
   await app.register(authPlugin);
+
+  // Protect all slots and streaming telemetry routes
+  app.addHook("preHandler", async (req, reply) => {
+    const pathname = req.url.split("?")[0] ?? "";
+    if (
+      pathname.startsWith("/api/slots") ||
+      pathname.startsWith("/api/v1/slots") ||
+      pathname.startsWith("/api/events") ||
+      pathname.startsWith("/api/v1/events") ||
+      pathname.startsWith("/api/stream") ||
+      pathname.startsWith("/api/v1/stream")
+    ) {
+      await app.authenticate(req, reply);
+    }
+  });
 
   await app.register(rateLimit, {
     max: 300,

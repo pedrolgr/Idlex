@@ -2917,15 +2917,32 @@ function updateAuthUI(user) {
 
 async function checkCurrentUser() {
   try {
-    const res = await fetch('/api/v1/auth/session');
-    if (res.ok) {
-      const data = await res.json();
-      updateAuthUI(data.user);
-    } else {
-      updateAuthUI(null);
+    const [sessRes, cfgRes] = await Promise.all([
+      fetch('/api/v1/auth/session').catch(() => null),
+      fetch('/api/v1/auth/config').catch(() => null),
+    ]);
+
+    if (cfgRes && cfgRes.ok) {
+      const cfg = await cfgRes.json();
+      const tabReg = document.getElementById('auth-tab-register');
+      if (tabReg && cfg.registrationEnabled === false) {
+        tabReg.style.display = 'none';
+      }
     }
+
+    if (sessRes && sessRes.ok) {
+      const data = await sessRes.json();
+      if (data && data.user) {
+        updateAuthUI(data.user);
+        return;
+      }
+    }
+    
+    updateAuthUI(null);
+    window.openAuthModal();
   } catch {
     updateAuthUI(null);
+    window.openAuthModal();
   }
 }
 

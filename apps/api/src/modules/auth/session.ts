@@ -247,11 +247,19 @@ const authPluginImpl: FastifyPluginAsync = async (app) => {
     if (req.url.startsWith("/api/v1/webhooks")) return;
 
     const origin = req.headers.origin;
-    if (origin && origin !== env.APP_ORIGIN && !origin.includes("localhost") && !origin.includes("127.0.0.1")) {
-      return reply.status(403).send({
-        error: "Origem não permitida (CSRF)",
-        code: "CSRF_ORIGIN_MISMATCH",
-      });
+    if (origin) {
+      const host = req.headers.host;
+      const originHost = origin.replace(/^https?:\/\//, "");
+      const isSameHost = host && originHost.toLowerCase() === host.toLowerCase();
+      const isAppOrigin = origin === env.APP_ORIGIN;
+      const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
+
+      if (!isSameHost && !isAppOrigin && !isLocalhost) {
+        return reply.status(403).send({
+          error: "Origem não permitida (CSRF)",
+          code: "CSRF_ORIGIN_MISMATCH",
+        });
+      }
     }
   });
 
