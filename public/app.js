@@ -11,7 +11,59 @@ const state = {
   selectedTiers: [0, 0, 0, 0],
   slotSubTabs: ['monsters', 'monsters', 'monsters', 'monsters'],
   citySubTabs: ['hunts', 'hunts', 'hunts', 'hunts'],
+  selectedTrainingSkills: ['sword', 'sword', 'sword', 'sword'],
 };
+
+const HUNTERA_TRAINING_SKILLS = [
+  {
+    id: "sword",
+    name: "Sword Fighting",
+    icon: "🗡️",
+    itemId: 35285,
+    equipmentName: "Lasting Exercise Sword",
+    desc: "Treino de combate com espadas.",
+  },
+  {
+    id: "axe",
+    name: "Axe Fighting",
+    icon: "🪓",
+    itemId: 35286,
+    equipmentName: "Lasting Exercise Axe",
+    desc: "Treino de combate com machados.",
+  },
+  {
+    id: "club",
+    name: "Club Fighting",
+    icon: "🔨",
+    itemId: 35287,
+    equipmentName: "Lasting Exercise Club",
+    desc: "Treino de combate com clavas e martelos.",
+  },
+  {
+    id: "distance",
+    name: "Distance Fighting",
+    icon: "🏹",
+    itemId: 35288,
+    equipmentName: "Lasting Exercise Bow",
+    desc: "Treino de combate à distância.",
+  },
+  {
+    id: "magic",
+    name: "Magic Level",
+    icon: "🔮",
+    itemId: 35290,
+    equipmentName: "Lasting Exercise Wand",
+    desc: "Treino de poder arcano e nível mágico.",
+  },
+  {
+    id: "shielding",
+    name: "Shielding",
+    icon: "🛡️",
+    itemId: 44067,
+    equipmentName: "Lasting Exercise Shield",
+    desc: "Treino de defesa e bloqueio com escudo.",
+  },
+];
 
 const HUNTERA_BLESSINGS = [
   {
@@ -401,6 +453,9 @@ function updateAllSlots(slotsData) {
       } else if (slot.status === 'hunting') {
         badge.textContent = 'Caçando';
         badge.className = 'tab-badge hunting';
+      } else if (slot.status === 'connected' && slot.session?.training?.active) {
+        badge.textContent = '🥋 Treinando';
+        badge.className = 'tab-badge training';
       } else if (slot.status === 'connected') {
         badge.textContent = slot.character?.name || 'Pronto';
         badge.className = 'tab-badge';
@@ -463,7 +518,7 @@ function renderSlot(slot) {
     if (nextStatus === 'dead' && body.querySelector('.death-screen-view')) {
       return;
     }
-    if (nextStatus === 'connected' && (body.querySelector('.hunt-picker-card') || body.querySelector('.blessings-panel-card'))) {
+    if (nextStatus === 'connected' && (body.querySelector('.hunt-picker-card') || body.querySelector('.blessings-panel-card') || body.querySelector('.training-panel-card'))) {
       const char = slot.character || {};
       const sess = slot.session || {};
       const levelBadge = body.querySelector('.char-level-badge');
@@ -560,7 +615,11 @@ function renderSlot(slot) {
     body.innerHTML = renderDeathView(slot);
     attachDeathHandlers(slot.id);
   } else if (nextStatus === 'connected') {
-    statusPill.textContent = 'Pronto na Cidade';
+    if (slot.session?.training?.active) {
+      statusPill.textContent = '🥋 Treinando Online';
+    } else {
+      statusPill.textContent = 'Pronto na Cidade';
+    }
     body.innerHTML = renderConnectedView(slot);
     attachConnectedHandlers(slot.id);
   } else if (nextStatus === 'hunting') {
@@ -666,10 +725,13 @@ function renderConnectedView(slot) {
       ${renderSlotInviteBanner(slot.id, sess)}
     </div>
 
-    <!-- Abas da Cidade: Caçadas vs Bênçãos -->
+    <!-- Abas da Cidade: Caçadas vs Treinamento vs Bênçãos -->
     <div class="city-nav-tabs">
       <button type="button" class="city-nav-btn ${(state.citySubTabs[slot.id - 1] || 'hunts') === 'hunts' ? 'active' : ''}" onclick="switchCitySubTab(${slot.id}, 'hunts')">
         🗡️ Caçadas
+      </button>
+      <button type="button" class="city-nav-btn ${(state.citySubTabs[slot.id - 1] || 'hunts') === 'training' ? 'active' : ''}" onclick="switchCitySubTab(${slot.id}, 'training')">
+        🎯 Treino ${sess.training?.active ? `<span class="city-training-badge active">Em Treino</span>` : ''}
       </button>
       <button type="button" class="city-nav-btn ${(state.citySubTabs[slot.id - 1] || 'hunts') === 'blessings' ? 'active' : ''}" onclick="switchCitySubTab(${slot.id}, 'blessings')">
         ✨ Bênçãos <span class="city-blessings-badge ${(sess.blessings?.owned?.length || 0) === 5 ? 'protected' : 'unprotected'}">${sess.blessings?.owned?.length || 0}/5</span>
@@ -678,6 +740,8 @@ function renderConnectedView(slot) {
 
     ${(state.citySubTabs[slot.id - 1] || 'hunts') === 'blessings' ? `
       ${renderBlessingsTab(slot)}
+    ` : (state.citySubTabs[slot.id - 1] || 'hunts') === 'training' ? `
+      ${renderTrainingTab(slot)}
     ` : `
       <!-- Seletor de Caçada e Tiers -->
       <div class="hunt-picker-card">
@@ -891,6 +955,131 @@ function renderBlessingsTab(slot) {
             ✨ Adquirir Todas as Bênçãos ${isFree ? '(Grátis)' : `(${totalCost.toLocaleString('pt-BR')} gp)`}
           </button>
         `}
+      </div>
+    </div>
+  `;
+}
+
+function renderTrainingTab(slot) {
+  const sess = slot.session || {};
+  const char = slot.character || {};
+  const training = sess.training || { active: false, skill: null, etaMs: null, exercise: false };
+  const skills = sess.skills || [];
+  const selectedSkillId = state.selectedTrainingSkills[slot.id - 1] || 'sword';
+  const selectedSkillObj = HUNTERA_TRAINING_SKILLS.find(s => s.id === selectedSkillId) || HUNTERA_TRAINING_SKILLS[0];
+
+  // Acha dados da skill do personagem
+  const charSkill = skills.find(s => s.id === selectedSkillId) || null;
+  const currentSkillLvl = charSkill ? charSkill.level : (selectedSkillId === 'magic' ? (char.magicLevel || sess.magicLevel || 0) : 10);
+  const currentSkillPct = charSkill ? charSkill.percent : 0;
+
+  const isCurrentTrainingSelected = training.active && training.skill === selectedSkillId;
+
+  return `
+    <div class="training-panel-card">
+      <div class="training-header-box">
+        <div class="training-status-info">
+          <div class="training-status-title">
+            <span>🎯 Treinamento Online (Dummy)</span>
+            <span class="training-active-badge ${training.active ? 'active' : 'idle'}">
+              ${training.active ? `🥋 Treinando ${training.skill ? (HUNTERA_TRAINING_SKILLS.find(s => s.id === training.skill)?.name || training.skill) : ''}` : '💤 Ocioso (Sem Treino)'}
+            </span>
+          </div>
+          <p class="training-desc">
+            Treine suas habilidades no dummy da cidade em tempo real enquanto estiver online no jogo.
+            O treinamento ocorre continuamente sem custo de ouro nem de poções.
+          </p>
+        </div>
+
+        ${training.active ? `
+          <div class="training-running-banner">
+            <div class="running-info">
+              <span class="running-icon">⚔️</span>
+              <div class="running-text">
+                <strong>Treino em andamento:</strong>
+                <span>${HUNTERA_TRAINING_SKILLS.find(s => s.id === training.skill)?.name || training.skill}</span>
+                ${training.etaMs ? `<small class="training-eta"> • ETA estimado: ${formatDuration(training.etaMs)}</small>` : ''}
+              </div>
+            </div>
+            <button type="button" class="btn-danger btn-sm" onclick="stopTraining(${slot.id})">
+              ⏹️ Parar Treino
+            </button>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="picker-label" style="margin-top: 10px; margin-bottom: 6px;">
+        Escolha o equipamento / habilidade de treino (6 disponíveis):
+      </div>
+
+      <!-- Grid com os 6 equipamentos de treino -->
+      <div class="training-equipment-grid">
+        ${HUNTERA_TRAINING_SKILLS.map((sk) => {
+          const isSelected = selectedSkillId === sk.id;
+          const isTrainingThis = training.active && training.skill === sk.id;
+          const skData = skills.find(s => s.id === sk.id);
+          const lvl = skData ? skData.level : (sk.id === 'magic' ? (char.magicLevel || sess.magicLevel || 0) : 10);
+          const pct = skData ? skData.percent : 0;
+
+          return `
+            <div class="training-equip-card ${isSelected ? 'selected' : ''} ${isTrainingThis ? 'training-now' : ''}"
+                 onclick="selectTrainingSkill(${slot.id}, '${sk.id}')">
+              <div class="equip-icon-wrap">
+                <img class="equip-item-img"
+                     src="/api/item-icon?name=${encodeURIComponent(sk.equipmentName)}&id=${sk.itemId}"
+                     alt="${sk.equipmentName}"
+                     onerror="handleItemImageError(this)" />
+              </div>
+              <div class="equip-info-wrap">
+                <div class="equip-name-row">
+                  <span class="equip-skill-name">${sk.icon} ${sk.name}</span>
+                  <span class="equip-skill-lvl">Nv. ${lvl}</span>
+                </div>
+                <div class="equip-weapon-name">${sk.equipmentName}</div>
+                <div class="equip-progress-bar-bg" title="Progresso atual: ${pct}%">
+                  <div class="equip-progress-bar-fill" style="width: ${pct}%"></div>
+                </div>
+                <div class="equip-card-footer">
+                  <span class="equip-pct-label">${pct}%</span>
+                  ${isTrainingThis ? `
+                    <span class="equip-training-tag">Ativo ⚔️</span>
+                  ` : isSelected ? `
+                    <span class="equip-selected-tag">Selecionado</span>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Card de Ação do Treino Selecionado -->
+      <div class="training-action-card">
+        <div class="training-selected-summary">
+          <div class="selected-equip-preview">
+            <img class="selected-equip-img"
+                 src="/api/item-icon?name=${encodeURIComponent(selectedSkillObj.equipmentName)}&id=${selectedSkillObj.itemId}"
+                 alt="${selectedSkillObj.equipmentName}"
+                 onerror="handleItemImageError(this)" />
+            <div class="selected-equip-text">
+              <div class="selected-equip-title">${selectedSkillObj.icon} ${selectedSkillObj.name}</div>
+              <div class="selected-equip-item-title">${selectedSkillObj.equipmentName}</div>
+              <div class="selected-equip-desc">${selectedSkillObj.desc} • Nível atual: <strong>${currentSkillLvl}</strong> (${currentSkillPct}%)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="training-action-buttons">
+          ${isCurrentTrainingSelected ? `
+            <button type="button" class="btn-danger btn-training-action" onclick="stopTraining(${slot.id})">
+              ⏹️ Parar Treino Online
+            </button>
+          ` : `
+            <button type="button" class="btn-primary btn-training-action" onclick="startOnlineTraining(${slot.id}, '${selectedSkillObj.id}')">
+              🥋 Iniciar Treino Online (${selectedSkillObj.name})
+            </button>
+          `}
+        </div>
       </div>
     </div>
   `;
@@ -2831,6 +3020,77 @@ window.buySingleBlessing = async function (slotId, blessingId) {
   } catch (err) {
     console.error('Erro ao comprar bênção:', err);
     showPartyToastFeedback('Erro de conexão ao comprar bênção.', true);
+  }
+};
+
+window.selectTrainingSkill = function (slotId, skillId) {
+  state.selectedTrainingSkills[slotId - 1] = skillId;
+  const s = state.slots[slotId - 1];
+  if (s) {
+    const card = document.getElementById(`slot-card-${slotId}`);
+    if (card) delete card.dataset.currentStatus;
+    renderSlot(s);
+  }
+};
+
+window.startOnlineTraining = async function (slotId, skillId) {
+  const chosenSkill = skillId || state.selectedTrainingSkills[slotId - 1] || 'sword';
+  const skillObj = HUNTERA_TRAINING_SKILLS.find(s => s.id === chosenSkill);
+  const skillName = skillObj ? skillObj.name : chosenSkill;
+
+  try {
+    showPartyToastFeedback(`Iniciando treino de ${skillName}...`);
+    const resp = await fetch(`/api/slots/${slotId}/training/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skill: chosenSkill }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      showPartyToastFeedback(`Erro ao iniciar treino: ${data.error || 'Falha no servidor'}`, true);
+      return;
+    }
+    const s = state.slots[slotId - 1];
+    if (s) {
+      Object.assign(s, data);
+      if (s.session) {
+        s.session.training = { active: true, skill: chosenSkill };
+      }
+      const card = document.getElementById(`slot-card-${slotId}`);
+      if (card) delete card.dataset.currentStatus;
+      renderSlot(s);
+    }
+    showPartyToastFeedback(`🥋 Treino online de ${skillName} iniciado com sucesso!`);
+  } catch (err) {
+    console.error('Erro ao iniciar treino:', err);
+    showPartyToastFeedback('Erro de conexão ao iniciar treino online.', true);
+  }
+};
+
+window.stopTraining = async function (slotId) {
+  try {
+    const resp = await fetch(`/api/slots/${slotId}/training/leave`, {
+      method: 'POST',
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      showPartyToastFeedback(`Erro ao parar treino: ${data.error || 'Falha no servidor'}`, true);
+      return;
+    }
+    const s = state.slots[slotId - 1];
+    if (s) {
+      Object.assign(s, data);
+      if (s.session) {
+        s.session.training = { active: false, skill: null };
+      }
+      const card = document.getElementById(`slot-card-${slotId}`);
+      if (card) delete card.dataset.currentStatus;
+      renderSlot(s);
+    }
+    showPartyToastFeedback('Treino online interrompido.');
+  } catch (err) {
+    console.error('Erro ao parar treino:', err);
+    showPartyToastFeedback('Erro de conexão ao parar treino online.', true);
   }
 };
 

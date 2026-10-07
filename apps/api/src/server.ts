@@ -5,7 +5,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
-import { getEnv } from "@idlex/config";
+import { getEnv, isSaasMode } from "@idlex/config";
 import { checkDatabaseConnection, closeDatabasePool } from "@idlex/db";
 import Fastify, {
   type FastifyInstance,
@@ -127,7 +127,7 @@ export async function createServerApp(): Promise<{
   await app.register(fastifyCookie);
   await app.register(authPlugin);
 
-  // Protect all slots and streaming telemetry routes
+  // Protect slots and streaming telemetry routes (enforced in SaaS mode; in standalone all 4 slots are accessible)
   app.addHook("preHandler", async (req, reply) => {
     const pathname = req.url.split("?")[0] ?? "";
     if (
@@ -138,7 +138,11 @@ export async function createServerApp(): Promise<{
       pathname.startsWith("/api/stream") ||
       pathname.startsWith("/api/v1/stream")
     ) {
-      await app.authenticate(req, reply);
+      if (isSaasMode(env)) {
+        await app.authenticate(req, reply);
+      } else {
+        await app.optionalAuthenticate(req, reply);
+      }
     }
   });
 
@@ -494,6 +498,54 @@ export async function createServerApp(): Promise<{
         }
         try {
           await slot.leaveHunt();
+          broadcastSSE();
+          return reply.send(slot.toJSON());
+        } catch (err) {
+          return reply.status(400).send({ error: (err as Error).message });
+        }
+      },
+    );
+
+    typedApp.post(
+      `${prefix}/slots/:id/training/start`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+          body: z.object({
+            skill: z.enum(["sword", "axe", "club", "distance", "magic", "shielding"]),
+            repeat: z.boolean().optional().default(false),
+          }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
+        try {
+          await slot.startTraining(req.body.skill, req.body.repeat);
+          broadcastSSE();
+          return reply.send(slot.toJSON());
+        } catch (err) {
+          return reply.status(400).send({ error: (err as Error).message });
+        }
+      },
+    );
+
+    typedApp.post(
+      `${prefix}/slots/:id/training/leave`,
+      {
+        schema: {
+          params: z.object({ id: z.coerce.number().min(1).max(4) }),
+        },
+      },
+      async (req, reply) => {
+        const slot = slots.find((s) => s.id === req.params.id);
+        if (!slot) {
+          return reply.status(404).send({ error: "Slot não encontrado" });
+        }
+        try {
+          await slot.leaveTraining();
           broadcastSSE();
           return reply.send(slot.toJSON());
         } catch (err) {

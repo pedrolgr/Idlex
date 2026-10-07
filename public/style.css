@@ -3041,6 +3041,37 @@ body {
   border: 1px solid rgba(245, 197, 24, 0.4);
 }
 
+.city-training-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.city-training-badge.active {
+  background: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+  border: 1px solid rgba(52, 152, 219, 0.4);
+  animation: pulse-badge 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(0.96); }
+}
+
+.tab-badge.training {
+  background: rgba(52, 152, 219, 0.15);
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.slot-status-pill.training {
+  background: rgba(52, 152, 219, 0.15);
+  color: #3498db;
+  border: 1px solid #3498db;
+}
+
 /* --------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------- */
 /* Painel de Bênçãos (Blessings Panel)                                         */
@@ -3275,6 +3306,321 @@ body {
   justify-content: center;
   gap: 6px;
   border-radius: var(--radius-sm);
+}
+
+/* --------------------------------------------------------------------------- */
+/* Painel de Treinamento Online (Training Panel)                               */
+/* --------------------------------------------------------------------------- */
+.training-panel-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.training-header-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.training-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.training-status-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.training-active-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.training-active-badge.active {
+  background: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+  border: 1px solid rgba(52, 152, 219, 0.4);
+}
+
+.training-active-badge.idle {
+  background: rgba(139, 148, 158, 0.15);
+  color: var(--text-dim);
+  border: 1px solid var(--border-subtle);
+}
+
+.training-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.training-running-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(52, 152, 219, 0.12);
+  border: 1px solid rgba(52, 152, 219, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  gap: 10px;
+}
+
+.running-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.running-icon {
+  font-size: 18px;
+}
+
+.running-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.running-text strong {
+  color: #3498db;
+  font-size: 11px;
+}
+
+.running-text span {
+  font-weight: 700;
+  color: #fff;
+}
+
+.training-eta {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* Grid com os 6 Equipamentos de Treinamento */
+.training-equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .training-equipment-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.training-equip-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.training-equip-card:hover {
+  border-color: rgba(245, 197, 24, 0.4);
+  background: rgba(245, 197, 24, 0.04);
+  transform: translateY(-1px);
+}
+
+.training-equip-card.selected {
+  border-color: var(--gold);
+  background: rgba(245, 197, 24, 0.1);
+  box-shadow: 0 0 8px rgba(245, 197, 24, 0.15);
+}
+
+.training-equip-card.training-now {
+  border-color: #3498db;
+  background: rgba(52, 152, 219, 0.12);
+}
+
+.equip-icon-wrap {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.equip-item-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.equip-info-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.equip-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+
+.equip-skill-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.equip-skill-lvl {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.equip-weapon-name {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.equip-progress-bar-bg {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.equip-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db, var(--gold));
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.equip-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1px;
+}
+
+.equip-pct-label {
+  font-size: 9.5px;
+  color: var(--text-dim);
+}
+
+.equip-selected-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.equip-training-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: #3498db;
+}
+
+/* Card de Ação do Treino Selecionado */
+.training-action-card {
+  background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.training-selected-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.selected-equip-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selected-equip-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.selected-equip-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.selected-equip-item-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.selected-equip-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.btn-training-action {
+  width: 100%;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 /* --------------------------------------------------------------------------- */

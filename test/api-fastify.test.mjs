@@ -33,10 +33,21 @@ test("Fastify Server App: slots API endpoints", async () => {
   const { app, shutdown } = await createServerApp();
 
   try {
+    const loginRes = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "colenntgamer@gmail.com",
+        password: "PlGr@Hunter123",
+      },
+    });
+    const cookie = loginRes.headers["set-cookie"];
+
     // GET /api/slots
     const res = await app.inject({
       method: "GET",
       url: "/api/slots",
+      headers: { cookie },
     });
     assert.equal(res.statusCode, 200);
     const slots = res.json();
@@ -47,6 +58,7 @@ test("Fastify Server App: slots API endpoints", async () => {
     const resSlot = await app.inject({
       method: "GET",
       url: "/api/v1/slots/1",
+      headers: { cookie },
     });
     assert.equal(resSlot.statusCode, 200);
     const slot1 = resSlot.json();
@@ -57,6 +69,7 @@ test("Fastify Server App: slots API endpoints", async () => {
     const resInvalid = await app.inject({
       method: "GET",
       url: "/api/slots/99",
+      headers: { cookie },
     });
     assert.equal(resInvalid.statusCode, 400);
   } finally {
