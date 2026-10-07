@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { getEnv } from "@idlex/config";
@@ -44,6 +46,40 @@ const inMemorySessions = new Map<
   { session: SessionData; expiresAt: number }
 >();
 
+// Persistent file storage for sessions (survives app/server restarts)
+const SESSIONS_FILE = path.resolve(process.cwd(), ".sessions.json");
+
+function loadStoredSessions(): void {
+  try {
+    if (fs.existsSync(SESSIONS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SESSIONS_FILE, "utf-8"));
+      const now = Date.now();
+      for (const [hash, entry] of Object.entries(data)) {
+        const item = entry as { session: SessionData; expiresAt: number };
+        if (item.expiresAt > now) {
+          inMemorySessions.set(hash, item);
+        }
+      }
+    }
+  } catch {}
+}
+
+function persistStoredSessions(): void {
+  try {
+    const obj: Record<string, { session: SessionData; expiresAt: number }> = {};
+    const now = Date.now();
+    for (const [hash, entry] of inMemorySessions.entries()) {
+      if (entry.expiresAt > now) {
+        obj[hash] = entry;
+      }
+    }
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(obj, null, 2), "utf-8");
+  } catch {}
+}
+
+// Load sessions on module initialization
+loadStoredSessions();
+
 export async function createSession(
   userId: string,
   token: string,
@@ -67,6 +103,7 @@ export async function createSession(
     },
     expiresAt: expiresAt.getTime(),
   });
+  persistStoredSessions();
 
   // 1. Redis
   if (redis) {
@@ -104,6 +141,7 @@ export async function createSession(
 export async function revokeSession(token: string): Promise<void> {
   const tokenHash = hashToken(token);
   inMemorySessions.delete(tokenHash);
+  persistStoredSessions();
   const redis = getRedisClient();
   const db = getDb();
 
@@ -129,6 +167,7 @@ export async function revokeAllUserSessions(userId: string): Promise<void> {
       inMemorySessions.delete(hash);
     }
   }
+  persistStoredSessions();
   const db = getDb();
   if (db) {
     try {

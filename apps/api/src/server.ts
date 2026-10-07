@@ -127,7 +127,7 @@ export async function createServerApp(): Promise<{
   await app.register(fastifyCookie);
   await app.register(authPlugin);
 
-  // Protect slots and streaming telemetry routes (enforced in SaaS mode; in standalone all 4 slots are accessible)
+  // Protect slots and streaming telemetry routes (requires main login to access slots)
   app.addHook("preHandler", async (req, reply) => {
     const pathname = req.url.split("?")[0] ?? "";
     if (
@@ -138,11 +138,7 @@ export async function createServerApp(): Promise<{
       pathname.startsWith("/api/stream") ||
       pathname.startsWith("/api/v1/stream")
     ) {
-      if (isSaasMode(env)) {
-        await app.authenticate(req, reply);
-      } else {
-        await app.optionalAuthenticate(req, reply);
-      }
+      await app.authenticate(req, reply);
     }
   });
 

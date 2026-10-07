@@ -376,7 +376,6 @@ function getSessionRates(sess) {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupLayoutControls();
-  connectSSE();
 });
 
 function setupLayoutControls() {
@@ -421,12 +420,22 @@ function switchTab(slotId) {
   });
 }
 
+let currentSSE = null;
+
 function connectSSE() {
+  if (currentSSE) {
+    try {
+      currentSSE.close();
+    } catch {}
+    currentSSE = null;
+  }
+
   const indicator = document.getElementById('live-indicator');
   const es = new EventSource('/api/events');
+  currentSSE = es;
 
   es.onopen = () => {
-    indicator.style.opacity = '1';
+    if (indicator) indicator.style.opacity = '1';
   };
 
   es.onmessage = (event) => {
@@ -439,8 +448,19 @@ function connectSSE() {
   };
 
   es.onerror = () => {
-    indicator.style.opacity = '0.4';
+    if (indicator) indicator.style.opacity = '0.4';
   };
+}
+
+function disconnectSSE() {
+  if (currentSSE) {
+    try {
+      currentSSE.close();
+    } catch {}
+    currentSSE = null;
+  }
+  const indicator = document.getElementById('live-indicator');
+  if (indicator) indicator.style.opacity = '0.4';
 }
 
 // ---------------------------------------------------------------------------
@@ -3315,15 +3335,25 @@ window.stopTraining = async function (slotId) {
 
 state.currentUser = null;
 
-window.openAuthModal = function () {
+window.openAuthModal = function (force = false) {
   const modal = document.getElementById('auth-modal');
+  const btnClose = document.getElementById('btn-close-auth-modal');
   if (modal) {
     modal.style.display = 'flex';
     clearAuthMsg();
   }
+  // If user is not authenticated, do not permit closing the modal
+  if (btnClose) {
+    btnClose.style.display = state.currentUser ? 'inline-block' : 'none';
+  }
 };
 
 window.closeAuthModal = function () {
+  // Never close the modal if there is no authenticated user
+  if (!state.currentUser) {
+    showAuthMsg('Faça login com sua conta para acessar o painel.', true);
+    return;
+  }
   const modal = document.getElementById('auth-modal');
   if (modal) modal.style.display = 'none';
 };
@@ -3369,12 +3399,14 @@ function updateAuthUI(user) {
   const userLabel = document.getElementById('auth-user-label');
   const viewLogged = document.getElementById('auth-view-logged');
   const viewForms = document.getElementById('auth-view-forms');
+  const btnClose = document.getElementById('btn-close-auth-modal');
 
   if (user) {
     if (btnUser) btnUser.classList.add('logged-in');
     if (userLabel) userLabel.textContent = user.email.split('@')[0];
     if (viewLogged) viewLogged.style.display = 'block';
     if (viewForms) viewForms.style.display = 'none';
+    if (btnClose) btnClose.style.display = 'inline-block';
 
     const emailEl = document.getElementById('auth-display-email');
     const planEl = document.getElementById('auth-display-plan');
@@ -3382,11 +3414,18 @@ function updateAuthUI(user) {
     if (emailEl) emailEl.textContent = user.email;
     if (planEl) planEl.textContent = `Plano: ${user.plan || 'screens1'}`;
     if (screensEl) screensEl.textContent = `${user.screens || 1} tela(s) máx`;
+
+    // Connect SSE once user is authenticated
+    connectSSE();
   } else {
     if (btnUser) btnUser.classList.remove('logged-in');
     if (userLabel) userLabel.textContent = 'Entrar';
     if (viewLogged) viewLogged.style.display = 'none';
     if (viewForms) viewForms.style.display = 'block';
+    if (btnClose) btnClose.style.display = 'none';
+
+    // Disconnect SSE if unauthenticated
+    disconnectSSE();
   }
 }
 
@@ -3409,6 +3448,7 @@ async function checkCurrentUser() {
       const data = await sessRes.json();
       if (data && data.user) {
         updateAuthUI(data.user);
+        window.closeAuthModal();
         return;
       }
     }

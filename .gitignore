@@ -8,4 +8,5 @@ coverage/
 *.log
 fixtures/raw/
 .turbo/
+.sessions.json
 
