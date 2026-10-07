@@ -3,6 +3,7 @@ import {
   HUNTERA_ITEM_SELL_PRICES,
   HUNTERA_SUPPLY_PRICES,
 } from "./constants.js";
+import { HUNTERA_AUCTION_PRICES } from "./auction-prices.js";
 import {
   formatDuration,
   formatEstimatedTime,
@@ -366,8 +367,13 @@ export class HuntSession {
     if (this.priceMode === "custom" && this.customPrices.has(itemId)) {
       return this.customPrices.get(itemId)!;
     }
-    if (this.priceMode === "auction" && this.auctionPrices.has(itemId)) {
-      return this.auctionPrices.get(itemId)!;
+    if (this.priceMode === "auction") {
+      if (this.auctionPrices.has(itemId)) {
+        return this.auctionPrices.get(itemId)!;
+      }
+      if (itemId in HUNTERA_AUCTION_PRICES) {
+        return HUNTERA_AUCTION_PRICES[itemId]!;
+      }
     }
     return (
       this.npcSellPrices.get(itemId) ??

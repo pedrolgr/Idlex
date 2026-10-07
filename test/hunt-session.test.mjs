@@ -588,6 +588,19 @@ test("HuntSession: supports pricing modes (npc, auction, custom) and custom pric
   json = session.toJSON();
   assert.equal(json.itemsValue, 1600); // 2 * 800
   assert.equal(json.lootValue, 1600);
+
+  // Fallback para HUNTERA_AUCTION_PRICES quando não há override específico recebido
+  const session2 = new HuntSession({ huntId: "hunt-fallback" });
+  session2.handleMessage({
+    type: "inventory-update",
+    gold: 0,
+    changes: [
+      { container: "backpack", index: 0, item: { itemId: 811, name: "terra legs", count: 1 } },
+    ],
+  });
+  session2.setPriceMode("auction");
+  const json2 = session2.toJSON();
+  assert.equal(json2.itemsValue, 15895);
 });
 
 test("HuntSession: includes gold in bag directly into profit/balance", () => {

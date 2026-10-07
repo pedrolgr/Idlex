@@ -133,7 +133,13 @@ export class Slot {
         this.onBroadcast?.();
       }
 
-      if (msg.type === "death-history" || msg.type === "blessings-status" || msg.type === "training-update") {
+      if (
+        msg.type === "death-history" ||
+        msg.type === "blessings-status" ||
+        msg.type === "training-update" ||
+        msg.type === "item-values" ||
+        msg.type === "market-prices"
+      ) {
         this.onBroadcast?.();
       }
 

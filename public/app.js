@@ -2648,15 +2648,24 @@ window.setSlotPriceMode = async function (slotId, mode) {
       body: JSON.stringify({ mode }),
     });
     const data = await resp.json();
-    if (data.session) {
-      const idx = slotId - 1;
+    if (!resp.ok) {
+      showPartyToastFeedback(`Erro: ${data.error || 'Falha ao alternar modo de preço'}`, true);
+      return;
+    }
+    const idx = slotId - 1;
+    if (data && data.session) {
       if (state.slots[idx]) {
-        state.slots[idx].session = data.session;
-        renderSlot(state.slots[idx]);
+        Object.assign(state.slots[idx], data);
+      } else {
+        state.slots[idx] = data;
       }
+      renderSlot(state.slots[idx]);
+      const modeLabel = mode === 'auction' ? '🏷️ Leilão' : mode === 'custom' ? '✏️ Preço Próprio' : '🏛️ NPC';
+      showPartyToastFeedback(`Precificação atualizada para ${modeLabel}!`);
     }
   } catch (err) {
     console.error('Erro ao alternar modo de preço:', err);
+    showPartyToastFeedback('Erro de conexão ao alternar modo de preço.', true);
   }
 };
 
@@ -2669,15 +2678,22 @@ window.setSlotItemPrice = async function (slotId, itemId, price) {
       body: JSON.stringify({ itemId: Number(itemId), price: numPrice }),
     });
     const data = await resp.json();
-    if (data.session) {
-      const idx = slotId - 1;
+    if (!resp.ok) {
+      showPartyToastFeedback(`Erro: ${data.error || 'Falha ao definir preço do item'}`, true);
+      return;
+    }
+    const idx = slotId - 1;
+    if (data && data.session) {
       if (state.slots[idx]) {
-        state.slots[idx].session = data.session;
-        renderSlot(state.slots[idx]);
+        Object.assign(state.slots[idx], data);
+      } else {
+        state.slots[idx] = data;
       }
+      renderSlot(state.slots[idx]);
     }
   } catch (err) {
     console.error('Erro ao definir preço do item:', err);
+    showPartyToastFeedback('Erro de conexão ao definir preço do item.', true);
   }
 };
 
