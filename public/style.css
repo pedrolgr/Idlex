@@ -838,18 +838,37 @@ body {
   background: var(--bg-inner);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 2px;
+  padding: 3px;
   margin-top: 10px;
   margin-bottom: 8px;
-  gap: 2px;
+  gap: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 197, 24, 0.25) transparent;
+}
+
+.hunt-subtabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.hunt-subtabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hunt-subtabs::-webkit-scrollbar-thumb {
+  background: rgba(245, 197, 24, 0.25);
+  border-radius: 3px;
 }
 
 .hunt-subtab-btn {
-  flex: 1;
+  flex: 1 0 auto;
+  min-width: max-content;
   background: transparent;
   border: none;
   color: var(--text-dim);
-  padding: 5px 8px;
+  padding: 6px 10px;
   font-size: 11px;
   font-weight: 600;
   border-radius: 4px;
@@ -858,7 +877,10 @@ body {
   align-items: center;
   justify-content: center;
   gap: 5px;
+  white-space: nowrap;
   transition: all 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hunt-subtab-btn:hover {
@@ -2991,10 +3013,16 @@ body {
   margin-bottom: 10px;
   border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .city-nav-btn {
-  flex: 1;
+  flex: 1 0 auto;
+  min-width: max-content;
+  white-space: nowrap;
   background: var(--bg-inner);
   border: 1px solid var(--border-subtle);
   color: var(--text-dim);
@@ -3008,6 +3036,8 @@ body {
   justify-content: center;
   gap: 6px;
   transition: all 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .city-nav-btn:hover {
@@ -4431,14 +4461,110 @@ body {
     padding: 8px;
   }
 
-  /* Modal de Autenticação */
-  .auth-modal-card {
-    width: 100%;
-    max-width: 100%;
+  /* Ajustes do Banner de Personagem no Mobile */
+  .char-banner {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px;
   }
 
-  .auth-modal-body {
-    padding: 14px;
+  .char-banner .char-details {
+    flex: 1 1 calc(100% - 66px);
+    min-width: 0;
+  }
+
+  .char-banner > div:last-child {
+    flex: 1 1 100% !important;
+    flex-direction: row !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 8px;
+    margin-top: 2px;
+  }
+
+  .char-title-row {
+    gap: 6px;
+  }
+
+  .char-name {
+    font-size: 14px;
+  }
+
+  /* Sub-abas de Caçada no Mobile */
+  .hunt-subtabs {
+    padding: 3px;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  .hunt-subtab-btn {
+    padding: 7px 11px;
+    font-size: 11.5px;
+    touch-action: manipulation;
+  }
+
+  .subtab-content {
+    -webkit-overflow-scrolling: touch;
+    max-height: 320px;
+  }
+
+  /* Painel de Sequência de Ações (Action Bar) */
+  .connected-actionbar-panel {
+    -webkit-overflow-scrolling: touch;
+    max-height: 320px;
+  }
+
+  .action-slot-item {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .slot-name-text {
+    max-width: 130px;
+  }
+
+  .btn-slot-icon {
+    min-width: 32px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Seletor de Tiers no Mobile */
+  .tier-selector {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .tier-pill {
+    flex: 1 0 90px;
+    min-width: 90px;
+  }
+
+  /* Barra de Estimativas por Hora */
+  .hourly-rates-bar {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .rate-card {
+    padding: 4px 6px;
+  }
+
+  .rate-val {
+    font-size: 12px;
+  }
+
+  /* Lista de amigos e party no modal */
+  .friends-list-container,
+  .party-members-list,
+  .blessings-grid {
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -4459,6 +4585,34 @@ body {
   .action-type-pills {
     flex-direction: column;
   }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .kpi-card {
+    padding: 8px 10px;
+  }
+
+  .kpi-val {
+    font-size: 16px;
+  }
+
+  .training-equipment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .char-banner > div:last-child {
+    justify-content: space-between !important;
+  }
+
+  .char-banner > div:last-child button {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+  }
 }
+
 
 

@@ -12,6 +12,8 @@ const state = {
   slotSubTabs: ['monsters', 'monsters', 'monsters', 'monsters'],
   citySubTabs: ['hunts', 'hunts', 'hunts', 'hunts'],
   selectedTrainingSkills: ['sword', 'sword', 'sword', 'sword'],
+  huntFilters: ['', '', '', ''],
+  huntViewModes: ['cards', 'cards', 'cards', 'cards'],
 };
 
 const HUNTERA_TRAINING_SKILLS = [
@@ -155,6 +157,156 @@ const ACTION_OPTIONS = {
     { id: "groundshaker", name: "Groundshaker (exori mas)" },
   ]
 };
+
+// Metadados Elementais e Ícones do Huntera / Tibia
+const ELEMENT_METADATA = {
+  fire: { name: 'Fogo', icon: '🔥', color: '#ff5722' },
+  ice: { name: 'Gelo', icon: '❄️', color: '#00d2ff' },
+  energy: { name: 'Energia', icon: '⚡', color: '#9b59b6' },
+  earth: { name: 'Terra', icon: '🌿', color: '#2ecc71' },
+  holy: { name: 'Sagrado', icon: '✨', color: '#f1c40f' },
+  death: { name: 'Morte', icon: '💀', color: '#7f8c8d' },
+  physical: { name: 'Físico', icon: '🗡️', color: '#e67e22' },
+  lifedrain: { name: 'Dreno de Vida', icon: '🩸', color: '#e74c3c' },
+};
+
+// Faixas de Nível Recomendado Oficiais / Canônicas para cada caçada
+const HUNT_LEVEL_RANGES = {
+  "rat-hunt": { min: 1, rec: 8, max: 20, tierLabel: "Iniciante" },
+  "spider-hunt": { min: 1, rec: 8, max: 20, tierLabel: "Iniciante" },
+  "troll-hunt": { min: 8, rec: 12, max: 25, tierLabel: "Iniciante" },
+  "swamp-troll-hunt": { min: 8, rec: 15, max: 30, tierLabel: "Iniciante" },
+  "orc-hunt": { min: 10, rec: 15, max: 30, tierLabel: "Iniciante" },
+  "folda-hunt": { min: 10, rec: 18, max: 35, tierLabel: "Iniciante" },
+  "skeleton-hunt": { min: 10, rec: 15, max: 30, tierLabel: "Iniciante" },
+  "rotworm-hunt": { min: 10, rec: 20, max: 40, tierLabel: "Iniciante" },
+  "dwarf-hunt": { min: 12, rec: 20, max: 40, tierLabel: "Iniciante" },
+  "minotaur-hunt": { min: 15, rec: 25, max: 45, tierLabel: "Iniciante" },
+  "gloom-ghost-wolf-hunt": { min: 15, rec: 25, max: 45, tierLabel: "Iniciante" },
+  "amazon-hunt": { min: 15, rec: 25, max: 50, tierLabel: "Iniciante" },
+  "dark-cathedral-hunt": { min: 20, rec: 30, max: 50, tierLabel: "Intermediário Leve" },
+  "ghoul-hunt": { min: 20, rec: 30, max: 50, tierLabel: "Intermediário Leve" },
+  "rorc-hunt": { min: 20, rec: 30, max: 55, tierLabel: "Intermediário Leve" },
+  "yalahar-elf-hunt": { min: 20, rec: 35, max: 60, tierLabel: "Intermediário Leve" },
+  "tarantula-hunt": { min: 20, rec: 35, max: 50, tierLabel: "Intermediário Leve" },
+  "scarab-hunt": { min: 25, rec: 40, max: 60, tierLabel: "Intermediário Leve" },
+  "swampling-hunt": { min: 25, rec: 40, max: 60, tierLabel: "Intermediário Leve" },
+  "tortoise-hunt": { min: 30, rec: 45, max: 70, tierLabel: "Intermediário" },
+  "mutated-human-hunt": { min: 30, rec: 50, max: 75, tierLabel: "Intermediário" },
+  "cyclops-hunt": { min: 30, rec: 45, max: 70, tierLabel: "Intermediário" },
+  "mummy-hunt": { min: 30, rec: 45, max: 70, tierLabel: "Intermediário" },
+  "bonelord-hunt": { min: 35, rec: 50, max: 75, tierLabel: "Intermediário" },
+  "orc-fortress-hunt": { min: 40, rec: 60, max: 90, tierLabel: "Intermediário" },
+  "green-djinn-hunt": { min: 40, rec: 60, max: 90, tierLabel: "Intermediário" },
+  "blue-djinn-hunt": { min: 40, rec: 60, max: 90, tierLabel: "Intermediário" },
+  "carlin-corym-hunt": { min: 40, rec: 60, max: 90, tierLabel: "Intermediário" },
+  "cult-hunt": { min: 45, rec: 65, max: 100, tierLabel: "Intermediário" },
+  "elder-forest-hunt": { min: 45, rec: 65, max: 100, tierLabel: "Intermediário" },
+  "drefia-hunt": { min: 45, rec: 70, max: 100, tierLabel: "Intermediário" },
+  "ab-bonelord-hunt": { min: 50, rec: 70, max: 100, tierLabel: "Intermediário Avançado" },
+  "ice-golem-hunt": { min: 50, rec: 70, max: 100, tierLabel: "Intermediário Avançado" },
+  "lizard-steppe-hunt": { min: 50, rec: 75, max: 110, tierLabel: "Intermediário Avançado" },
+  "brimstone-cave-hunt": { min: 55, rec: 80, max: 120, tierLabel: "Intermediário Avançado" },
+  "dragon-hunt": { min: 55, rec: 80, max: 130, tierLabel: "Intermediário Avançado" },
+  "vampire-hunt": { min: 60, rec: 85, max: 130, tierLabel: "Intermediário Avançado" },
+  "mutated-cave-hunt": { min: 60, rec: 85, max: 130, tierLabel: "Intermediário Avançado" },
+  "bog-raider-hunt": { min: 60, rec: 90, max: 130, tierLabel: "Intermediário Avançado" },
+  "giant-spider-hunt": { min: 60, rec: 90, max: 140, tierLabel: "Intermediário Avançado" },
+  "deeplings-hunt": { min: 70, rec: 100, max: 150, tierLabel: "Avançado" },
+  "hero-hunt": { min: 70, rec: 100, max: 160, tierLabel: "Avançado" },
+  "wyrm-hunt": { min: 75, rec: 100, max: 160, tierLabel: "Avançado" },
+  "zao-stronghold-hunt": { min: 80, rec: 110, max: 170, tierLabel: "Avançado" },
+  "grimvale-warrens-hunt": { min: 80, rec: 120, max: 180, tierLabel: "Avançado" },
+  "rathleton-minotaurs-hunt": { min: 90, rec: 130, max: 190, tierLabel: "Avançado" },
+  "grimvale-dens-hunt": { min: 90, rec: 130, max: 190, tierLabel: "Avançado" },
+  "dragon-lord-hunt": { min: 90, rec: 140, max: 200, tierLabel: "Avançado" },
+  "war-golem-hunt": { min: 90, rec: 140, max: 200, tierLabel: "Avançado" },
+  "lizard-chosen-hunt": { min: 100, rec: 150, max: 220, tierLabel: "Especialista" },
+  "werehyaena-hunt": { min: 100, rec: 150, max: 220, tierLabel: "Especialista" },
+  "werelion-hunt": { min: 110, rec: 160, max: 240, tierLabel: "Especialista" },
+  "behemoth-hunt": { min: 110, rec: 160, max: 240, tierLabel: "Especialista" },
+  "hellspawn-hunt": { min: 120, rec: 170, max: 250, tierLabel: "Especialista" },
+  "hydra-hunt": { min: 120, rec: 180, max: 260, tierLabel: "Especialista" },
+  "seacrest-serpent-hunt": { min: 130, rec: 190, max: 280, tierLabel: "Especialista" },
+  "draken-walls-hunt": { min: 140, rec: 200, max: 300, tierLabel: "Especialista" },
+  "ripper-spectre-hunt": { min: 150, rec: 220, max: 320, tierLabel: "Mestre" },
+  "goroma-serpent-spawn-hunt": { min: 150, rec: 220, max: 320, tierLabel: "Mestre" },
+  "asura-hunt": { min: 160, rec: 240, max: 350, tierLabel: "Mestre" },
+  "gazer-spectre-hunt": { min: 160, rec: 240, max: 350, tierLabel: "Mestre" },
+  "roshamuul-lower-hunt": { min: 170, rec: 250, max: 380, tierLabel: "Mestre" },
+  "burster-spectre-hunt": { min: 170, rec: 260, max: 400, tierLabel: "Mestre" },
+  "grim-reaper-hunt": { min: 180, rec: 270, max: 400, tierLabel: "Mestre" },
+  "demon-hunt": { min: 180, rec: 280, max: 420, tierLabel: "Mestre" },
+  "falcon-hunt": { min: 200, rec: 300, max: 450, tierLabel: "Elite" },
+  "falcon-bastion-hunt": { min: 220, rec: 320, max: 500, tierLabel: "Elite" },
+  "cobra-bastion-hunt": { min: 240, rec: 350, max: 520, tierLabel: "Elite" },
+  "hell-hub-hunt": { min: 250, rec: 380, max: 550, tierLabel: "Elite" },
+  "marapur-naga-hunt": { min: 250, rec: 380, max: 550, tierLabel: "Elite" },
+  "catacombs-hunt": { min: 260, rec: 400, max: 600, tierLabel: "Elite" },
+  "issavi-hunt": { min: 280, rec: 420, max: 650, tierLabel: "Elite Extrema" },
+  "issavi-south-hunt": { min: 300, rec: 450, max: 700, tierLabel: "Elite Extrema" },
+  "ice-library-hunt": { min: 350, rec: 500, max: 800, tierLabel: "End-Game" },
+  "fire-library-hunt": { min: 350, rec: 500, max: 800, tierLabel: "End-Game" },
+};
+
+function getHuntLevelInfo(hunt) {
+  if (!hunt) return { min: 1, rec: 20, max: 50, tierLabel: "Normal", badgeColor: "#94a3b8" };
+  const id = hunt.id ?? hunt.huntId;
+  const cfg = id ? HUNT_LEVEL_RANGES[id] : null;
+  if (cfg) return cfg;
+
+  const min = hunt.minLevel || hunt.requiredLevel || 1;
+  const rec = hunt.recommendedLevel || (min > 1 ? min + 15 : 20);
+  const max = rec + 40;
+  return { min, rec, max, tierLabel: "Aventura" };
+}
+
+function getHuntSuitability(playerLevel, huntInfo) {
+  if (!playerLevel) return { status: 'ok', label: `Recomendado Nv. ${huntInfo.rec}+`, class: 'normal' };
+  if (playerLevel < huntInfo.min) {
+    return { status: 'danger', label: `Muito Perigoso (Nv. mín. ${huntInfo.min})`, class: 'danger' };
+  }
+  if (playerLevel < huntInfo.rec) {
+    return { status: 'challenging', label: `Desafiador (Ideal Nv. ${huntInfo.rec}+)`, class: 'challenging' };
+  }
+  if (playerLevel > huntInfo.max + 50) {
+    return { status: 'easy', label: `Fácil / XP Baixa`, class: 'easy' };
+  }
+  return { status: 'ideal', label: `Ideal para seu nível (${huntInfo.rec}-${huntInfo.max})`, class: 'ideal' };
+}
+
+function getMonsterAvatarUrl(monster) {
+  if (!monster || !monster.outfitId) return '/favicon.svg';
+  return `/api/avatar?outfitId=${monster.outfitId}&head=0&body=0&legs=0&feet=0`;
+}
+
+function getMonsterElementalTraits(elements) {
+  if (!elements || typeof elements !== 'object') {
+    return { weaknesses: [], resistances: [], immunities: [] };
+  }
+  const weaknesses = [];
+  const resistances = [];
+  const immunities = [];
+
+  for (const [el, val] of Object.entries(elements)) {
+    if (typeof val !== 'number') continue;
+    const meta = ELEMENT_METADATA[el] || { name: el, icon: '⚡', color: '#cbd5e1' };
+    if (val >= 100) {
+      immunities.push({ element: el, ...meta, percent: val });
+    } else if (val > 0) {
+      resistances.push({ element: el, ...meta, percent: val });
+    } else if (val < 0) {
+      weaknesses.push({ element: el, ...meta, percent: Math.abs(val) });
+    }
+  }
+
+  // Ordena por maior fraqueza e maior resistência
+  weaknesses.sort((a, b) => b.percent - a.percent);
+  resistances.sort((a, b) => b.percent - a.percent);
+  immunities.sort((a, b) => b.percent - a.percent);
+
+  return { weaknesses, resistances, immunities };
+}
 
 function formatActionName(type, id) {
   const list = ACTION_OPTIONS[type] || [];
@@ -384,29 +536,44 @@ function setupLayoutControls() {
   const tabsBar = document.getElementById('tabs-bar');
   const container = document.getElementById('slots-container');
 
+  function applyViewMode(mode) {
+    state.viewMode = mode;
+    if (mode === 'grid') {
+      btnGrid.classList.add('active');
+      btnTabs.classList.remove('active');
+      tabsBar.style.display = 'none';
+      container.classList.remove('tabs-mode');
+    } else {
+      btnTabs.classList.add('active');
+      btnGrid.classList.remove('active');
+      tabsBar.style.display = 'flex';
+      container.classList.add('tabs-mode');
+      switchTab(state.activeTab);
+    }
+  }
+
   btnGrid.addEventListener('click', () => {
-    state.viewMode = 'grid';
-    btnGrid.classList.add('active');
-    btnTabs.classList.remove('active');
-    tabsBar.style.display = 'none';
-    container.classList.remove('tabs-mode');
+    applyViewMode('grid');
   });
 
   btnTabs.addEventListener('click', () => {
-    state.viewMode = 'tabs';
-    btnTabs.classList.add('active');
-    btnGrid.classList.remove('active');
-    tabsBar.style.display = 'flex';
-    container.classList.add('tabs-mode');
-    switchTab(state.activeTab);
+    applyViewMode('tabs');
   });
 
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const slotId = parseInt(btn.dataset.slot, 10);
       switchTab(slotId);
+      try {
+        btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      } catch {}
     });
   });
+
+  // Em dispositivos móveis / telas estreitas, inicia nativamente no modo Abas para melhor experiência
+  if (window.innerWidth <= 768) {
+    applyViewMode('tabs');
+  }
 }
 
 function switchTab(slotId) {
@@ -608,9 +775,11 @@ function renderSlot(slot) {
 
       const isHuntTab = (state.slotActiveTabs?.[slot.id - 1] || 'hunt') === 'hunt';
       const select = body.querySelector('.hunt-select');
+      const cards = body.querySelectorAll('.hunt-option-card');
       const catalog = state.catalogs[slot.id - 1] || [];
-      // Se o catálogo chegou agora e o select estava vazio, atualiza o seletor na aba de caçada!
-      if (isHuntTab && (!select || (catalog.length > 0 && select.options.length !== catalog.length))) {
+      // Se o catálogo chegou agora e o select/cards estavam vazios, atualiza o seletor na aba de caçada!
+      const needsRender = isHuntTab && catalog.length > 0 && (!select && cards.length === 0);
+      if (needsRender) {
         body.innerHTML = renderConnectedView(slot);
         attachConnectedHandlers(slot.id);
       }
@@ -715,6 +884,20 @@ function renderConnectedView(slot) {
     { name: 'Reckless', monsterCount: 8 },
   ];
 
+  // Filtro de caçadas por texto (nome da caçada ou nome de monstros)
+  const filterQuery = (state.huntFilters[slot.id - 1] || '').trim().toLowerCase();
+  const filteredHunts = filterQuery
+    ? catalog.filter((h) => {
+        const name = (h.name ?? h.displayName ?? h.id ?? '').toLowerCase();
+        if (name.includes(filterQuery)) return true;
+        const monsters = (h.monsters || []).map((m) => (m.name || '').toLowerCase()).join(' ');
+        return monsters.includes(filterQuery);
+      })
+    : catalog;
+
+  const selectedHuntLvl = getHuntLevelInfo(selectedHunt);
+  const selectedHuntSuit = getHuntSuitability(char.level, selectedHuntLvl);
+
   const avatarUrl = getCharacterAvatarUrl(char);
   const colors = char.outfitColors || {};
 
@@ -793,7 +976,7 @@ function renderConnectedView(slot) {
       ` : (state.citySubTabs[slot.id - 1] || 'hunts') === 'training' ? `
         ${renderTrainingTab(slot)}
       ` : `
-        <!-- Seletor de Caçada e Tiers -->
+        <!-- Seletor de Caçada e Tiers Melhorado -->
         <div class="hunt-picker-card">
           ${!hasHunts ? `
             <div style="text-align: center; padding: 30px 0; color: var(--gold);">
@@ -801,16 +984,112 @@ function renderConnectedView(slot) {
               <p style="font-size: 13px; font-weight: 600;">Carregando caçadas disponíveis...</p>
             </div>
           ` : `
-            <div class="picker-label">Selecione a Caçada (${catalog.length} disponíveis)</div>
-            <select class="hunt-select" id="select-hunt-${slot.id}">
-              ${catalog.map((h) => {
-                const id = h.id ?? h.huntId;
-                const name = h.name ?? h.displayName ?? id;
-                const req = h.requiredLevel ? ` [Nv. ${h.requiredLevel}+]` : '';
-                return `<option value="${id}" ${id === selectedHuntId ? 'selected' : ''}>${name}${req}</option>`;
-              }).join('')}
-            </select>
+            <!-- Topo com Título e Alternador de Modo (Cards vs Lista) -->
+            <div class="hunt-picker-header">
+              <div class="picker-label">Selecione a Caçada (${catalog.length} disponíveis)</div>
+              <div class="hunt-view-toggle">
+                <button type="button" class="btn-view-toggle ${(state.huntViewModes[slot.id - 1] || 'cards') === 'cards' ? 'active' : ''}" onclick="toggleHuntViewMode(${slot.id}, 'cards')" title="Visualização em Cards Detalhados">
+                  🃏 Cards
+                </button>
+                <button type="button" class="btn-view-toggle ${(state.huntViewModes[slot.id - 1] || 'cards') === 'select' ? 'active' : ''}" onclick="toggleHuntViewMode(${slot.id}, 'select')" title="Visualização em Lista Compacta">
+                  📜 Lista
+                </button>
+              </div>
+            </div>
 
+            <!-- Barra de Busca de Caçada / Monstros -->
+            <div class="hunt-search-bar">
+              <span class="hunt-search-icon">🔍</span>
+              <input type="text" class="hunt-search-input" id="hunt-search-${slot.id}" placeholder="Buscar por caçada, monstro (ex: Rat, Dragon, Demon)..." value="${state.huntFilters[slot.id - 1] || ''}" oninput="handleHuntSearchInput(${slot.id}, this.value)" />
+              ${(state.huntFilters[slot.id - 1] || '') ? `
+                <button type="button" class="btn-clear-search" onclick="clearHuntSearch(${slot.id})">✕</button>
+              ` : ''}
+            </div>
+
+            ${(state.huntViewModes[slot.id - 1] || 'cards') === 'cards' ? `
+              <!-- Visualização em CARDS Ricos com Scroll Horizontal/Grid Compacta -->
+              <div class="hunt-cards-carousel" id="hunt-cards-container-${slot.id}">
+                ${filteredHunts.length === 0 ? `
+                  <div class="no-hunts-found">Nenhuma caçada encontrada com o termo pesquisado.</div>
+                ` : filteredHunts.map((h) => {
+                  const id = h.id ?? h.huntId;
+                  const isSelected = id === selectedHuntId;
+                  const lvlInfo = getHuntLevelInfo(h);
+                  const suit = getHuntSuitability(char.level, lvlInfo);
+                  const firstMonster = h.monsters?.[0];
+                  const avatarSrc = firstMonster?.outfitId ? `/api/avatar?outfitId=${firstMonster.outfitId}&head=0&body=0&legs=0&feet=0` : '/favicon.svg';
+                  const monsterNames = (h.monsters || []).map(m => m.name).join(', ') || 'Monstros desconhecidos';
+
+                  // Obter fraquezas dos monstros desta hunt
+                  const allWeaknesses = [];
+                  (h.monsters || []).forEach(m => {
+                    const traits = getMonsterElementalTraits(m.elements);
+                    traits.weaknesses.forEach(w => {
+                      if (!allWeaknesses.some(x => x.element === w.element)) allWeaknesses.push(w);
+                    });
+                  });
+
+                  return `
+                    <div class="hunt-option-card ${isSelected ? 'selected' : ''} ${suit.class}" data-hunt-id="${id}" data-slot="${slot.id}" onclick="selectHuntFromCard(${slot.id}, '${id}')">
+                      <div class="hunt-card-top">
+                        <div class="hunt-card-avatar">
+                          <img src="${avatarSrc}" alt="${h.name}" onerror="this.src='/favicon.svg'" />
+                        </div>
+                        <div class="hunt-card-title-col">
+                          <div class="hunt-card-name font-rpg">${h.name ?? h.displayName ?? id}</div>
+                          <div class="hunt-suitability-badge ${suit.class}">
+                            <span>${suit.label}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="hunt-card-monsters-preview" title="Monstros: ${monsterNames}">
+                        👾 ${monsterNames}
+                      </div>
+
+                      <div class="hunt-card-weaknesses">
+                        ${allWeaknesses.length > 0 ? `
+                          <span class="trait-tag weak" title="Fraquezas: ${allWeaknesses.map(w => `${w.name} (+${w.percent}%)`).join(', ')}">
+                            🎯 ${allWeaknesses.slice(0, 2).map(w => `${w.icon} ${w.name}`).join(' ')}
+                          </span>
+                        ` : '<span class="trait-tag neutral">Dano normal</span>'}
+                        <button type="button" class="btn-card-more-info" onclick="event.stopPropagation(); openHuntDetailsModal(${slot.id}, '${id}')" title="Ver Bestiário e Guia">
+                          ℹ️ Detalhes
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : `
+              <!-- Visualização Clássica em Select -->
+              <select class="hunt-select" id="select-hunt-${slot.id}">
+                ${filteredHunts.map((h) => {
+                  const id = h.id ?? h.huntId;
+                  const name = h.name ?? h.displayName ?? id;
+                  const lvlInfo = getHuntLevelInfo(h);
+                  return `<option value="${id}" ${id === selectedHuntId ? 'selected' : ''}>${name} [Nv. ${lvlInfo.rec}+] (${lvlInfo.tierLabel})</option>`;
+                }).join('')}
+              </select>
+            `}
+
+            <!-- Resumo e Detalhes da Caçada Selecionada -->
+            ${selectedHunt ? `
+              <div class="selected-hunt-summary-bar">
+                <div class="summary-left">
+                  <span class="summary-label">Selecionada:</span>
+                  <span class="summary-name font-rpg">${selectedHunt.name ?? selectedHunt.displayName}</span>
+                  <span class="hunt-suitability-badge ${selectedHuntSuit.class}">
+                    ${selectedHuntSuit.label}
+                  </span>
+                </div>
+                <button type="button" class="btn-hunt-full-details" onclick="openHuntDetailsModal(${slot.id}, '${selectedHuntId}')" title="Ver fraquezas, monstros e itens no Bestiário">
+                  📖 Ver Bestiário & Fraquezas
+                </button>
+              </div>
+            ` : ''}
+
+            <!-- Dificuldade / Tier -->
             <div class="picker-label" style="margin-top: 4px;">Dificuldade / Tier</div>
             <div class="tier-selector" id="tier-selector-${slot.id}">
               ${tiers.map((t, idx) => `
@@ -1561,7 +1840,12 @@ function renderHuntingView(slot) {
     <!-- Painel Ativo -->
     <div class="active-hunt-view">
       <div class="hunt-status-header">
-        <div class="hunt-status-title">🗡️ ${huntTitle}</div>
+        <div class="hunt-status-title-wrap">
+          <div class="hunt-status-title">🗡️ ${huntTitle}</div>
+          <button type="button" class="btn-hunt-info-badge" onclick="openHuntDetailsModal(${slot.id}, '${sess.huntId || state.selectedHunts[slot.id - 1] || ''}')" title="Ver Fraquezas, Monstros e Melhores Níveis desta caçada">
+            📖 Bestiário & Fraquezas
+          </button>
+        </div>
         <div class="hunt-timer">⏱ ${sess.elapsedFormatted || '00s'}</div>
       </div>
 
@@ -1648,17 +1932,65 @@ function renderSubTabContent(slotId, subtab, sess) {
       return '<div style="color: var(--text-dim); font-size: 12px; text-align: center; padding: 30px 0;">Aguardando primeiro abate...</div>';
     }
 
-    return killsList.map((item) => `
-      <div class="monster-item">
-        <div class="monster-info-left">
-          <span class="monster-name">• ${item.name}</span>
-          ${item.bestiaryKills !== null && item.bestiaryKills !== undefined ? `
-            <span class="monster-bestiary-tag" title="Total abatido no Bestiário (histórico da conta)">📖 ${item.bestiaryKills.toLocaleString('pt-BR')} no Bestiário</span>
-          ` : ''}
+    const catalog = state.catalogs[slotId - 1] || [];
+    const currentHunt = catalog.find((h) => (h.id ?? h.huntId) === (sess.huntId ?? state.selectedHunts[slotId - 1])) || catalog.find((h) => h.name === sess.huntName);
+
+    return killsList.map((item) => {
+      // Procura monstros na caçada correspondente para dados de avatar e fraquezas
+      let monsterData = null;
+      if (currentHunt?.monsters) {
+        monsterData = currentHunt.monsters.find((m) => m.name.toLowerCase() === item.name.toLowerCase());
+      }
+      if (!monsterData) {
+        // Tenta achar em qualquer caçada do catálogo
+        for (const h of catalog) {
+          const found = h.monsters?.find((m) => m.name.toLowerCase() === item.name.toLowerCase());
+          if (found) { monsterData = found; break; }
+        }
+      }
+
+      const avatarSrc = monsterData?.outfitId ? `/api/avatar?outfitId=${monsterData.outfitId}&head=0&body=0&legs=0&feet=0` : '/favicon.svg';
+      const traits = getMonsterElementalTraits(monsterData?.elements);
+
+      return `
+        <div class="active-monster-card" onclick="openHuntDetailsModal(${slotId}, '${currentHunt?.id || state.selectedHunts[slotId - 1] || ''}')" title="Clique para ver fraquezas e detalhes completos no Bestiário">
+          <div class="monster-card-left">
+            <div class="monster-card-avatar">
+              <img src="${avatarSrc}" alt="${item.name}" onerror="this.src='/favicon.svg'" />
+            </div>
+            <div class="monster-card-info">
+              <div class="monster-card-name-row">
+                <span class="monster-name font-rpg">${item.name}</span>
+                <span class="monster-count-badge">x${item.count} abates</span>
+              </div>
+              <div class="monster-card-traits-row">
+                ${traits.weaknesses.length > 0 ? `
+                  <span class="trait-tag weak" title="Fraqueza: ${traits.weaknesses.map(w => `${w.name} (+${w.percent}%)`).join(', ')}">
+                    🎯 ${traits.weaknesses[0].icon} ${traits.weaknesses[0].name} (+${traits.weaknesses[0].percent}%)
+                  </span>
+                ` : '<span class="trait-tag neutral">Dano normal</span>'}
+
+                ${traits.immunities.length > 0 ? `
+                  <span class="trait-tag immune" title="Imune a: ${traits.immunities.map(i => i.name).join(', ')}">
+                    🛡️ Imune: ${traits.immunities[0].name}
+                  </span>
+                ` : (traits.resistances.length > 0 ? `
+                  <span class="trait-tag resist" title="Resistente: ${traits.resistances.map(r => `${r.name} (-${r.percent}%)`).join(', ')}">
+                    🛡️ ${traits.resistances[0].icon} -${traits.resistances[0].percent}%
+                  </span>
+                ` : '')}
+              </div>
+            </div>
+          </div>
+          <div class="monster-card-right">
+            ${item.bestiaryKills !== null && item.bestiaryKills !== undefined ? `
+              <span class="monster-bestiary-tag" title="Total abatido no Bestiário desta conta">📖 ${item.bestiaryKills.toLocaleString('pt-BR')}</span>
+            ` : ''}
+            <span class="btn-monster-details-hint">Ver 🔍</span>
+          </div>
         </div>
-        <span class="monster-count">x${item.count}</span>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   if (subtab === 'supplies') {
@@ -2071,6 +2403,64 @@ function attachConnectedHandlers(slotId) {
   }
 }
 
+// Controladores Globais do Seletor de Caçada
+window.selectHuntFromCard = function (slotId, huntId) {
+  const idx = slotId - 1;
+  state.selectedHunts[idx] = huntId;
+  state.selectedTiers[idx] = 0; // reset tier
+  const s = state.slots[idx];
+  if (s) {
+    const card = document.getElementById(`slot-card-${slotId}`);
+    if (card) delete card.dataset.currentStatus;
+    renderSlot(s);
+  }
+};
+
+window.toggleHuntViewMode = function (slotId, mode) {
+  const idx = slotId - 1;
+  state.huntViewModes[idx] = mode;
+  const s = state.slots[idx];
+  if (s) {
+    const card = document.getElementById(`slot-card-${slotId}`);
+    if (card) delete card.dataset.currentStatus;
+    renderSlot(s);
+  }
+};
+
+let huntSearchDebounce = null;
+window.handleHuntSearchInput = function (slotId, query) {
+  const idx = slotId - 1;
+  state.huntFilters[idx] = query;
+  clearTimeout(huntSearchDebounce);
+  huntSearchDebounce = setTimeout(() => {
+    const s = state.slots[idx];
+    if (s) {
+      const card = document.getElementById(`slot-card-${slotId}`);
+      if (card) delete card.dataset.currentStatus;
+      renderSlot(s);
+      setTimeout(() => {
+        const input = document.getElementById(`hunt-search-${slotId}`);
+        if (input) {
+          input.focus();
+          const len = input.value.length;
+          input.setSelectionRange(len, len);
+        }
+      }, 50);
+    }
+  }, 200);
+};
+
+window.clearHuntSearch = function (slotId) {
+  const idx = slotId - 1;
+  state.huntFilters[idx] = '';
+  const s = state.slots[idx];
+  if (s) {
+    const card = document.getElementById(`slot-card-${slotId}`);
+    if (card) delete card.dataset.currentStatus;
+    renderSlot(s);
+  }
+};
+
 function attachHuntingHandlers(slotId) {
   const btnLeave = document.querySelector(`.btn-leave-hunt[data-slot="${slotId}"]`);
   if (btnLeave) {
@@ -2096,6 +2486,10 @@ function attachHuntingHandlers(slotId) {
       state.slotSubTabs[slotId - 1] = subtab;
       subtabBtns.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
+
+      try {
+        btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      } catch {}
 
       const contentEl = document.getElementById(`subtab-content-${slotId}`);
       const slot = state.slots[slotId - 1];
@@ -2584,6 +2978,202 @@ window.openPartyFriendsModal = function (slotId, initialTab = 'friends') {
 window.closePartyFriendsModal = function () {
   const modal = document.getElementById('party-friends-modal');
   if (modal) modal.style.display = 'none';
+};
+
+// ---------------------------------------------------------------------------
+// Modal de Detalhes da Caçada & Bestiário
+// ---------------------------------------------------------------------------
+
+let activeHuntModalSlotId = null;
+let activeHuntModalHuntId = null;
+
+window.openHuntDetailsModal = function (slotId, huntId) {
+  activeHuntModalSlotId = slotId || 1;
+  const catalog = state.catalogs[activeHuntModalSlotId - 1] || [];
+  activeHuntModalHuntId = huntId || state.selectedHunts[activeHuntModalSlotId - 1] || catalog[0]?.id;
+
+  const modal = document.getElementById('hunt-details-modal');
+  if (!modal) return;
+
+  renderHuntDetailsModalContent();
+  modal.style.display = 'flex';
+};
+
+window.closeHuntDetailsModal = function () {
+  const modal = document.getElementById('hunt-details-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+function renderHuntDetailsModalContent() {
+  const slotId = activeHuntModalSlotId || 1;
+  const slot = state.slots[slotId - 1];
+  const char = slot?.character || { name: 'Gatonet', level: 1 };
+  const catalog = state.catalogs[slotId - 1] || [];
+  const hunt = catalog.find((h) => (h.id ?? h.huntId) === activeHuntModalHuntId) || catalog[0];
+
+  const titleEl = document.getElementById('hunt-details-modal-title');
+  const contentEl = document.getElementById('hunt-details-modal-content');
+  if (!contentEl) return;
+
+  if (!hunt) {
+    contentEl.innerHTML = '<div style="padding: 30px; text-align: center; color: var(--text-dim);">Caçada não encontrada.</div>';
+    return;
+  }
+
+  const huntId = hunt.id ?? hunt.huntId;
+  const huntName = hunt.name ?? hunt.displayName ?? huntId;
+  if (titleEl) {
+    titleEl.innerHTML = `📖 Bestiário: <span style="color: var(--gold);">${huntName}</span>`;
+  }
+
+  const lvlInfo = getHuntLevelInfo(hunt);
+  const suit = getHuntSuitability(char.level, lvlInfo);
+  const monsters = hunt.monsters || [];
+  const tiers = hunt.tiers || [];
+  const lootItems = hunt.loot || [];
+  const rareDrops = lootItems.filter((i) => ['rare', 'very-rare'].includes(i.rarity));
+
+  contentEl.innerHTML = `
+    <!-- Topo da Caçada: Nível Recomendado e Avaliação -->
+    <div class="hunt-modal-hero ${suit.class}">
+      <div class="hunt-hero-left">
+        <h4 class="hunt-hero-title font-rpg">${huntName}</h4>
+        <p class="hunt-hero-desc">${hunt.description || 'Caçada desafiadora repleta de criaturas e recompensas no Huntera.'}</p>
+        <div class="hunt-hero-suit-badge ${suit.class}">
+          <span>${suit.label}</span>
+        </div>
+      </div>
+      <div class="hunt-hero-level-box">
+        <div class="hunt-level-pill">
+          <span class="lvl-label">Nível Mínimo</span>
+          <span class="lvl-val">${lvlInfo.min}</span>
+        </div>
+        <div class="hunt-level-pill highlight">
+          <span class="lvl-label">Recomendado</span>
+          <span class="lvl-val">Nv. ${lvlInfo.rec}+</span>
+        </div>
+        <div class="hunt-level-pill">
+          <span class="lvl-label">Faixa Ideal</span>
+          <span class="lvl-val">${lvlInfo.rec} - ${lvlInfo.max}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de Monstros e Fraquezas Elementais -->
+    <div class="hunt-modal-section">
+      <div class="hunt-section-header">
+        <span class="section-title">👾 Bestiário & Fraquezas dos Monstros (${monsters.length})</span>
+        <span class="section-sub">Use os elementos mais fracos para maximizar seu dano!</span>
+      </div>
+
+      <div class="hunt-monsters-detail-grid">
+        ${monsters.length === 0 ? `
+          <div style="color: var(--text-dim); font-size: 12px; padding: 12px;">Nenhum monstro catalogado nesta caçada.</div>
+        ` : monsters.map((m) => {
+          const avatarUrl = m.outfitId ? `/api/avatar?outfitId=${m.outfitId}&head=0&body=0&legs=0&feet=0` : '/favicon.svg';
+          const traits = getMonsterElementalTraits(m.elements);
+
+          return `
+            <div class="monster-detail-card">
+              <div class="monster-detail-top">
+                <div class="monster-detail-avatar-box">
+                  <img class="monster-detail-avatar" src="${avatarUrl}" alt="${m.name}" onerror="this.src='/favicon.svg'" />
+                </div>
+                <div class="monster-detail-identity">
+                  <span class="monster-detail-name font-rpg">${m.name}</span>
+                  ${m.bestiaryId ? `<span class="monster-detail-code">ID: ${m.bestiaryId}</span>` : ''}
+                </div>
+              </div>
+
+              <!-- Análise de Fraquezas -->
+              <div class="traits-group">
+                <span class="traits-group-label weak">🎯 Fraquezas (Causa Mais Dano):</span>
+                <div class="traits-pill-list">
+                  ${traits.weaknesses.length === 0 ? `
+                    <span class="trait-tag neutral">Nenhuma fraqueza elemental (+0%)</span>
+                  ` : traits.weaknesses.map((w) => `
+                    <span class="trait-tag weak" style="border-left: 3px solid ${w.color};">
+                      ${w.icon} <strong>${w.name}</strong> +${w.percent}%
+                    </span>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Análise de Imunidades e Resistências -->
+              ${(traits.immunities.length > 0 || traits.resistances.length > 0) ? `
+                <div class="traits-group">
+                  <span class="traits-group-label resist">🛡️ Resistências & Imunidades:</span>
+                  <div class="traits-pill-list">
+                    ${traits.immunities.map((im) => `
+                      <span class="trait-tag immune">
+                        🚫 Imune a <strong>${im.name}</strong>
+                      </span>
+                    `).join('')}
+                    ${traits.resistances.map((r) => `
+                      <span class="trait-tag resist" style="border-left: 3px solid ${r.color};">
+                        ${r.icon} <strong>${r.name}</strong> -${r.percent}%
+                      </span>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Tiers de Dificuldade Disponíveis -->
+    ${tiers.length > 0 ? `
+      <div class="hunt-modal-section">
+        <div class="hunt-section-header">
+          <span class="section-title">⚔️ Dificuldade / Tiers da Caçada</span>
+        </div>
+        <div class="hunt-tiers-cards-grid">
+          ${tiers.map((t, idx) => `
+            <div class="tier-card-detail ${idx === 0 ? 'cautious' : idx === 1 ? 'bold' : 'reckless'}">
+              <div class="tier-card-name">${t.name || `Tier ${idx + 1}`}</div>
+              <div class="tier-card-monsters">👾 ${t.monsterCount || (idx * 3 + 2)} monstros simultâneos</div>
+              <div class="tier-card-loot-chance">${idx === 0 ? 'Mais seguro / Menos risco' : idx === 1 ? 'Equilibrado / Boa XP' : 'Insano / XP e Drops máximos'}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Drops Notáveis / Valiosos -->
+    ${rareDrops.length > 0 ? `
+      <div class="hunt-modal-section">
+        <div class="hunt-section-header">
+          <span class="section-title">🎁 Drops Notáveis & Raros</span>
+        </div>
+        <div class="hunt-rare-drops-grid">
+          ${rareDrops.map((it) => `
+            <div class="hunt-rare-drop-chip ${it.rarity}">
+              <img src="/api/item-icon?name=${encodeURIComponent(it.name || '')}&id=${it.itemId || ''}" alt="${it.name}" onerror="this.src='/favicon.svg'" />
+              <span class="drop-name">${it.name}</span>
+              <span class="drop-rarity-pill ${it.rarity}">${it.rarity === 'very-rare' ? 'Muito Raro' : 'Raro'}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Ação de Selecionar esta Caçada diretamente do Modal -->
+    <div class="hunt-modal-footer">
+      <button type="button" class="btn-primary" onclick="selectHuntAndCloseModal(${slotId}, '${huntId}')">
+        ⚔️ Selecionar esta Caçada para o Slot ${slotId}
+      </button>
+      <button type="button" class="btn-secondary" onclick="closeHuntDetailsModal()">
+        Fechar
+      </button>
+    </div>
+  `;
+}
+
+window.selectHuntAndCloseModal = function (slotId, huntId) {
+  selectHuntFromCard(slotId, huntId);
+  closeHuntDetailsModal();
 };
 
 window.switchPartyModalTab = function (tab) {
