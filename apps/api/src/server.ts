@@ -89,6 +89,25 @@ export async function createServerApp(): Promise<{
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    (_req, body, done) => {
+      const text = typeof body === "string" ? body : body.toString("utf8");
+      if (!text || text.trim() === "") {
+        return done(null, {});
+      }
+      try {
+        const json = JSON.parse(text);
+        done(null, json);
+      } catch (err) {
+        const parseErr = err as { statusCode?: number };
+        parseErr.statusCode = 400;
+        done(err as Error, undefined);
+      }
+    },
+  );
+
   // Security Plugins
   await app.register(helmet, {
     contentSecurityPolicy: {

@@ -3566,7 +3566,6 @@ window.leaveParty = async function (slotId) {
   try {
     const resp = await fetch(`/api/slots/${slotId}/party/leave`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
     });
     const data = await resp.json();
     if (!resp.ok) {
@@ -3728,7 +3727,6 @@ window.reviveSlot = async function (slotId) {
   try {
     const resp = await fetch(`/api/slots/${slotId}/revive`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
     });
     const data = await resp.json();
     if (!resp.ok) {
@@ -3763,7 +3761,6 @@ window.dismissDeathSlot = async function (slotId) {
   try {
     const resp = await fetch(`/api/slots/${slotId}/death/dismiss`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
     });
     const data = await resp.json();
     if (!resp.ok) {

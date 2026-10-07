@@ -76,6 +76,29 @@ test("Fastify Server App: slots API endpoints", async () => {
     const slotAfterMode = resPriceMode.json();
     assert.equal(slotAfterMode.session.priceMode, "auction");
 
+    // POST /api/slots/1/death/dismiss with empty JSON body
+    const resDismiss = await app.inject({
+      method: "POST",
+      url: "/api/slots/1/death/dismiss",
+      headers: { cookie, "content-type": "application/json" },
+      payload: "",
+    });
+    assert.equal(resDismiss.statusCode, 200);
+
+    // POST /api/slots/1/revive with empty JSON body does not fail with FST_ERR_CTP_EMPTY_JSON_BODY
+    const resReviveEmptyJson = await app.inject({
+      method: "POST",
+      url: "/api/slots/1/revive",
+      headers: { cookie, "content-type": "application/json" },
+      payload: "",
+    });
+    // Slot is not connected, so error is about socket, not empty JSON body
+    assert.equal(resReviveEmptyJson.statusCode, 400);
+    assert.equal(
+      resReviveEmptyJson.json().error,
+      "Socket não conectado. Por favor, reconecte sua conta.",
+    );
+
     // Invalid slot index
     const resInvalid = await app.inject({
       method: "GET",
