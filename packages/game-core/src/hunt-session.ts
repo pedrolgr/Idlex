@@ -494,7 +494,7 @@ export class HuntSession {
 
   getSkillsSummary(): SkillSummaryItem[] {
     const list: SkillSummaryItem[] = [];
-    if (this.magicLevel > 0) {
+    if (this.magicLevel > 0 || this.magicProgressNeeded > 0 || this.magicProgress > 0) {
       const needed = this.magicProgressNeeded || 1;
       const prog = this.magicProgress || 0;
       const rem = Math.max(0, needed - prog);

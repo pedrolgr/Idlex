@@ -3557,62 +3557,478 @@ body {
   color: #3498db;
 }
 
-/* Card de Ação do Treino Selecionado */
-.training-action-card {
+/* Card Focado na Habilidade Treinada / Selecionada */
+.training-focused-skill-card {
   background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.training-focused-skill-card.is-active-training {
+  border-color: rgba(52, 152, 219, 0.45);
+  box-shadow: 0 0 14px rgba(52, 152, 219, 0.12);
+  background: linear-gradient(180deg, rgba(52, 152, 219, 0.05) 0%, var(--bg-inner) 100%);
+}
+
+.focused-skill-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.focused-skill-id-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.focused-skill-img-box {
+  width: 44px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(245, 197, 24, 0.25);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.focused-skill-equip-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.focused-skill-names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.focused-skill-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.focused-skill-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.2px;
+}
+
+.focused-level-badge {
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(245, 197, 24, 0.15);
+  color: var(--gold);
+  border: 1px solid rgba(245, 197, 24, 0.35);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+
+.focused-skill-weapon {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.focused-skill-status-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.training-live-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.training-live-badge.active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.training-live-badge.other {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.training-live-badge.idle {
+  background: rgba(139, 148, 158, 0.12);
+  color: var(--text-dim);
+  border: 1px solid var(--border-subtle);
+}
+
+.pulse-beacon {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulse-beacon-anim 1.6s infinite;
+}
+
+@keyframes pulse-beacon-anim {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.focused-level-target {
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.focused-level-target .lvl-current {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.focused-level-target .lvl-arrow {
+  color: var(--gold);
+}
+
+.focused-level-target .lvl-next {
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* Seção da Barra de Progresso Focada */
+.focused-xp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.focused-xp-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.focused-xp-nums {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.focused-xp-label {
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+
+.focused-xp-count {
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+}
+
+.focused-xp-pct-pill {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--gold);
+  background: rgba(245, 197, 24, 0.12);
+  border: 1px solid rgba(245, 197, 24, 0.3);
+  border-radius: 8px;
+  padding: 1px 8px;
+}
+
+.focused-xp-bar-bg {
+  width: 100%;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.focused-xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 50%, var(--gold) 100%);
+  border-radius: 9px;
+  transition: width 0.4s ease-out;
+  position: relative;
+}
+
+.focused-xp-bar-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 9px 9px 0 0;
+}
+
+.focused-xp-bottomline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.focused-xp-remaining {
+  color: var(--text-dim);
+}
+
+.focused-xp-remaining strong {
+  color: #fff;
+}
+
+.focused-xp-target-tag {
+  font-size: 10px;
+  color: var(--gold);
+  font-weight: 700;
+  background: rgba(245, 197, 24, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Grid Comparativo de Tempo (Online vs Arma de Exercício) */
+.training-eta-comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .training-eta-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.eta-mode-card {
+  background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  transition: all 0.2s ease;
 }
 
-.training-selected-summary {
+.eta-mode-card.current-active {
+  border-color: rgba(52, 152, 219, 0.5);
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.15);
+  background: rgba(52, 152, 219, 0.06);
+}
+
+.eta-mode-card.exercise {
+  border-color: rgba(245, 197, 24, 0.25);
+}
+
+.eta-mode-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
-.selected-equip-preview {
+.eta-mode-icon {
+  font-size: 18px;
+}
+
+.eta-mode-title-wrap {
+  flex: 1;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  min-width: 0;
 }
 
-.selected-equip-img {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
-  image-rendering: pixelated;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 6px;
-  padding: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.selected-equip-title {
-  font-size: 13px;
+.eta-mode-title {
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.selected-equip-item-title {
-  font-size: 11px;
-  font-weight: 600;
+.eta-mode-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eta-badge-active {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: rgba(52, 152, 219, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(52, 152, 219, 0.4);
+  border-radius: 6px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.eta-badge-free {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 6px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.eta-badge-fast {
+  font-size: 9.5px;
+  font-weight: 800;
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 6px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.eta-time-display {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.eta-time-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+
+.eta-time-val.fast {
   color: var(--gold);
 }
 
-.selected-equip-desc {
-  font-size: 11px;
+.eta-time-sub {
+  font-size: 10px;
   color: var(--text-dim);
-  margin-top: 1px;
+  margin-top: 2px;
+}
+
+.eta-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.eta-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.eta-detail-label {
+  color: var(--text-dim);
+  font-size: 10.5px;
+}
+
+.eta-detail-val {
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 10.5px;
+}
+
+.eta-detail-val.text-green {
+  color: #10b981;
+}
+
+.eta-detail-val.text-gold {
+  color: var(--gold);
+}
+
+.eta-detail-val.fast-rate {
+  color: #fbbf24;
+}
+
+/* Banner Informativo de Comparação */
+.eta-comparison-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(245, 197, 24, 0.08);
+  border: 1px solid rgba(245, 197, 24, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.comparison-banner-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.comparison-banner-text {
+  color: var(--text-dim);
+}
+
+.comparison-banner-text strong {
+  color: #fff;
+}
+
+/* Linha de Ação do Treino */
+.focused-action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
 }
 
 .btn-training-action {
-  width: 100%;
+  flex: 1;
   padding: 11px 16px;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -3621,6 +4037,13 @@ body {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+.btn-training-stop-alt {
+  padding: 11px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* --------------------------------------------------------------------------- */

@@ -298,6 +298,28 @@ function formatEstimatedTimeClient(seconds) {
   return `${d}d ${remHours}h`;
 }
 
+function formatTrainingEta(ms) {
+  if (ms === null || ms === undefined || isNaN(ms) || ms <= 0) {
+    return '--';
+  }
+  const totalSec = Math.max(0, Math.round(ms / 1000));
+  if (totalSec < 60) return `${totalSec}s`;
+  const totalMin = Math.floor(totalSec / 60);
+  if (totalMin < 60) return `${totalMin}m`;
+  const hours = Math.floor(totalMin / 60);
+  const remMin = totalMin % 60;
+  if (hours < 24) {
+    return remMin > 0 ? `${hours}h ${remMin}m` : `${hours}h`;
+  }
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
+}
+
+function formatDuration(ms) {
+  return formatTrainingEta(ms);
+}
+
 function getSessionRates(sess) {
   if (sess && sess.rates && typeof sess.rates.goldPerHour === 'number') {
     return sess.rates;
@@ -587,6 +609,13 @@ function renderSlot(slot) {
           bannerContainer.innerHTML = newBannerHtml;
         }
       }
+
+      // Atualiza subaba da cidade se estiver em Treino
+      const subtabContainer = body.querySelector(`#city-subtab-container-${slot.id}`);
+      const currentSubTab = state.citySubTabs[slot.id - 1] || 'hunts';
+      if (subtabContainer && currentSubTab === 'training') {
+        subtabContainer.innerHTML = renderTrainingTab(slot);
+      }
       return;
     }
     if (nextStatus === 'hunting' && body.querySelector('.active-hunt-view')) {
@@ -738,55 +767,57 @@ function renderConnectedView(slot) {
       </button>
     </div>
 
-    ${(state.citySubTabs[slot.id - 1] || 'hunts') === 'blessings' ? `
-      ${renderBlessingsTab(slot)}
-    ` : (state.citySubTabs[slot.id - 1] || 'hunts') === 'training' ? `
-      ${renderTrainingTab(slot)}
-    ` : `
-      <!-- Seletor de Caçada e Tiers -->
-      <div class="hunt-picker-card">
-        ${!hasHunts ? `
-          <div style="text-align: center; padding: 30px 0; color: var(--gold);">
-            <p style="font-size: 26px; margin-bottom: 8px; animation: spin 1s infinite linear;">⚔️</p>
-            <p style="font-size: 13px; font-weight: 600;">Carregando caçadas disponíveis...</p>
-          </div>
-        ` : `
-          <div class="picker-label">Selecione a Caçada (${catalog.length} disponíveis)</div>
-          <select class="hunt-select" id="select-hunt-${slot.id}">
-            ${catalog.map((h) => {
-              const id = h.id ?? h.huntId;
-              const name = h.name ?? h.displayName ?? id;
-              const req = h.requiredLevel ? ` [Nv. ${h.requiredLevel}+]` : '';
-              return `<option value="${id}" ${id === selectedHuntId ? 'selected' : ''}>${name}${req}</option>`;
-            }).join('')}
-          </select>
+    <div id="city-subtab-container-${slot.id}">
+      ${(state.citySubTabs[slot.id - 1] || 'hunts') === 'blessings' ? `
+        ${renderBlessingsTab(slot)}
+      ` : (state.citySubTabs[slot.id - 1] || 'hunts') === 'training' ? `
+        ${renderTrainingTab(slot)}
+      ` : `
+        <!-- Seletor de Caçada e Tiers -->
+        <div class="hunt-picker-card">
+          ${!hasHunts ? `
+            <div style="text-align: center; padding: 30px 0; color: var(--gold);">
+              <p style="font-size: 26px; margin-bottom: 8px; animation: spin 1s infinite linear;">⚔️</p>
+              <p style="font-size: 13px; font-weight: 600;">Carregando caçadas disponíveis...</p>
+            </div>
+          ` : `
+            <div class="picker-label">Selecione a Caçada (${catalog.length} disponíveis)</div>
+            <select class="hunt-select" id="select-hunt-${slot.id}">
+              ${catalog.map((h) => {
+                const id = h.id ?? h.huntId;
+                const name = h.name ?? h.displayName ?? id;
+                const req = h.requiredLevel ? ` [Nv. ${h.requiredLevel}+]` : '';
+                return `<option value="${id}" ${id === selectedHuntId ? 'selected' : ''}>${name}${req}</option>`;
+              }).join('')}
+            </select>
 
-          <div class="picker-label" style="margin-top: 4px;">Dificuldade / Tier</div>
-          <div class="tier-selector" id="tier-selector-${slot.id}">
-            ${tiers.map((t, idx) => `
-              <div class="tier-pill ${idx === currentTier ? 'selected' : ''}" data-tier="${idx}" data-slot="${slot.id}">
-                <div class="tier-name">${t.name || `Tier ${idx}`}</div>
-                <div class="tier-monsters">${t.monsterCount || (idx * 3 + 2)} monstros</div>
-              </div>
-            `).join('')}
-          </div>
+            <div class="picker-label" style="margin-top: 4px;">Dificuldade / Tier</div>
+            <div class="tier-selector" id="tier-selector-${slot.id}">
+              ${tiers.map((t, idx) => `
+                <div class="tier-pill ${idx === currentTier ? 'selected' : ''}" data-tier="${idx}" data-slot="${slot.id}">
+                  <div class="tier-name">${t.name || `Tier ${idx}`}</div>
+                  <div class="tier-monsters">${t.monsterCount || (idx * 3 + 2)} monstros</div>
+                </div>
+              `).join('')}
+            </div>
 
-          <button class="btn-primary btn-start-hunt" data-slot="${slot.id}" style="margin-top: 10px; padding: 12px; font-size: 15px;">
-            ⚔️ Começar Caçada
-          </button>
-        `}
-      </div>
-
-      <!-- Painel de Sequência & Condições na Cidade -->
-      <div class="connected-actionbar-card">
-        <button type="button" class="btn-secondary btn-actionbar-toggle" id="btn-actionbar-toggle-${slot.id}" onclick="toggleConnectedActionBar(${slot.id})">
-          ⚡ Sequência & Condições de Poções (${(sess.actionBar?.slots || []).filter(Boolean).length}/20 ativas)
-        </button>
-        <div class="connected-actionbar-panel" id="connected-actionbar-${slot.id}" style="display: none; margin-top: 10px;" data-actionbar-hash="${JSON.stringify(sess.actionBar?.slots || [])}">
-          ${renderActionBarList(slot.id, sess)}
+            <button class="btn-primary btn-start-hunt" data-slot="${slot.id}" style="margin-top: 10px; padding: 12px; font-size: 15px;">
+              ⚔️ Começar Caçada
+            </button>
+          `}
         </div>
-      </div>
-    `}
+
+        <!-- Painel de Sequência & Condições na Cidade -->
+        <div class="connected-actionbar-card">
+          <button type="button" class="btn-secondary btn-actionbar-toggle" id="btn-actionbar-toggle-${slot.id}" onclick="toggleConnectedActionBar(${slot.id})">
+            ⚡ Sequência & Condições de Poções (${(sess.actionBar?.slots || []).filter(Boolean).length}/20 ativas)
+          </button>
+          <div class="connected-actionbar-panel" id="connected-actionbar-${slot.id}" style="display: none; margin-top: 10px;" data-actionbar-hash="${JSON.stringify(sess.actionBar?.slots || [])}">
+            ${renderActionBarList(slot.id, sess)}
+          </div>
+        </div>
+      `}
+    </div>
   `;
 }
 
@@ -965,29 +996,74 @@ function renderTrainingTab(slot) {
   const char = slot.character || {};
   const training = sess.training || { active: false, skill: null, etaMs: null, exercise: false };
   const skills = sess.skills || [];
-  const selectedSkillId = state.selectedTrainingSkills[slot.id - 1] || 'sword';
-  const selectedSkillObj = HUNTERA_TRAINING_SKILLS.find(s => s.id === selectedSkillId) || HUNTERA_TRAINING_SKILLS[0];
 
-  // Acha dados da skill do personagem
-  const charSkill = skills.find(s => s.id === selectedSkillId) || null;
-  const currentSkillLvl = charSkill ? charSkill.level : (selectedSkillId === 'magic' ? (char.magicLevel || sess.magicLevel || 0) : 10);
-  const currentSkillPct = charSkill ? charSkill.percent : 0;
+  // Se o slot estiver ativamente treinando, dá preferência à skill em treino caso o usuário
+  // ainda não tenha selecionado uma especificamente
+  const activeTrainingSkillId = (training.active && training.skill) ? training.skill : null;
+  let selectedSkillId = state.selectedTrainingSkills[slot.id - 1];
+  if (!selectedSkillId) {
+    selectedSkillId = activeTrainingSkillId || 'sword';
+    state.selectedTrainingSkills[slot.id - 1] = selectedSkillId;
+  }
 
-  const isCurrentTrainingSelected = training.active && training.skill === selectedSkillId;
+  // Skill atualmente em foco no painel
+  const focusedSkillId = selectedSkillId;
+  const focusedSkillObj = HUNTERA_TRAINING_SKILLS.find(s => s.id === focusedSkillId) || HUNTERA_TRAINING_SKILLS[0];
+  const activeSkillObj = activeTrainingSkillId ? (HUNTERA_TRAINING_SKILLS.find(s => s.id === activeTrainingSkillId) || { name: activeTrainingSkillId, icon: '⚔️' }) : null;
+
+  // Encontra dados da skill atual do personagem
+  const charSkill = skills.find(s => s.id === focusedSkillId);
+  const currentSkillLvl = charSkill ? charSkill.level : (focusedSkillId === 'magic' ? (char.magicLevel || sess.magicLevel || 0) : 10);
+  const progress = charSkill ? (charSkill.progress || 0) : 0;
+  const needed = charSkill ? (charSkill.needed || 0) : 0;
+  const remaining = charSkill ? (charSkill.remaining || 0) : (needed > 0 ? Math.max(0, needed - progress) : 0);
+  const percent = charSkill ? charSkill.percent : (needed > 0 ? Math.min(100, Math.floor((progress / needed) * 100)) : 0);
+
+  const isTrainingThisSkill = training.active && training.skill === focusedSkillId;
+  const isTrainingOtherSkill = training.active && training.skill !== focusedSkillId;
+
+  // 1) ETA Treino Online (Dummy Regular Público)
+  // Ritmo base: 1 avanço a cada ~2s (2000 ms). Custo: 0 gp, sem gastar itens.
+  let onlineEtaMs = 0;
+  if (isTrainingThisSkill && !training.exercise && typeof training.etaMs === 'number' && training.etaMs > 0) {
+    onlineEtaMs = training.etaMs;
+  } else if (remaining > 0) {
+    onlineEtaMs = remaining * 2000;
+  }
+
+  // 2) ETA Arma de Exercício (Exercise Weapon / Item Específico)
+  // Ritmo acelerado: ~6.5x mais rápido por golpe (consome 1 carga a cada 2s).
+  let exerciseEtaMs = 0;
+  let exerciseCharges = 0;
+  if (isTrainingThisSkill && training.exercise && typeof training.etaMs === 'number' && training.etaMs > 0) {
+    exerciseEtaMs = training.etaMs;
+    exerciseCharges = Math.max(1, Math.ceil(training.etaMs / 2000));
+  } else if (remaining > 0) {
+    exerciseCharges = Math.max(1, Math.ceil(remaining / 6.5));
+    exerciseEtaMs = exerciseCharges * 2000;
+  }
+  const weaponsCount500 = exerciseCharges > 0 ? (exerciseCharges / 500).toFixed(1) : 0;
+
+  // Economia de tempo estimada
+  const timeSavedMs = Math.max(0, onlineEtaMs - exerciseEtaMs);
+
+  const formattedOnlineEta = formatTrainingEta(onlineEtaMs);
+  const formattedExerciseEta = formatTrainingEta(exerciseEtaMs);
+  const formattedTimeSaved = formatTrainingEta(timeSavedMs);
 
   return `
     <div class="training-panel-card">
       <div class="training-header-box">
         <div class="training-status-info">
           <div class="training-status-title">
-            <span>🎯 Treinamento Online (Dummy)</span>
+            <span>🎯 Treinamento de Habilidades (Cidade)</span>
             <span class="training-active-badge ${training.active ? 'active' : 'idle'}">
               ${training.active ? `🥋 Treinando ${training.skill ? (HUNTERA_TRAINING_SKILLS.find(s => s.id === training.skill)?.name || training.skill) : ''}` : '💤 Ocioso (Sem Treino)'}
             </span>
           </div>
           <p class="training-desc">
-            Treine suas habilidades no dummy da cidade em tempo real enquanto estiver online no jogo.
-            O treinamento ocorre continuamente sem custo de ouro nem de poções.
+            Evolua suas habilidades no pátio de treino da cidade em tempo real.
+            Veja abaixo a barra de XP focada e compare a velocidade entre o <strong>Treino Online (Grátis)</strong> e a <strong>Arma de Treino</strong>.
           </p>
         </div>
 
@@ -997,8 +1073,8 @@ function renderTrainingTab(slot) {
               <span class="running-icon">⚔️</span>
               <div class="running-text">
                 <strong>Treino em andamento:</strong>
-                <span>${HUNTERA_TRAINING_SKILLS.find(s => s.id === training.skill)?.name || training.skill}</span>
-                ${training.etaMs ? `<small class="training-eta"> • ETA estimado: ${formatDuration(training.etaMs)}</small>` : ''}
+                <span>${HUNTERA_TRAINING_SKILLS.find(s => s.id === training.skill)?.name || training.skill} (${training.exercise ? 'Arma de Exercício' : 'Dummy Online'})</span>
+                ${training.etaMs ? `<small class="training-eta"> • Tempo até o Nv. ${(skills.find(s => s.id === training.skill)?.level || 0) + 1}: ${formatTrainingEta(training.etaMs)}</small>` : ''}
               </div>
             </div>
             <button type="button" class="btn-danger btn-sm" onclick="stopTraining(${slot.id})">
@@ -1008,14 +1084,182 @@ function renderTrainingTab(slot) {
         ` : ''}
       </div>
 
-      <div class="picker-label" style="margin-top: 10px; margin-bottom: 6px;">
-        Escolha o equipamento / habilidade de treino (6 disponíveis):
+      <!-- Card Focado na Habilidade Sendo Treinada / Selecionada -->
+      <div class="training-focused-skill-card ${isTrainingThisSkill ? 'is-active-training' : ''}">
+        <div class="focused-skill-header">
+          <div class="focused-skill-id-badge">
+            <div class="focused-skill-img-box">
+              <img class="focused-skill-equip-img"
+                   src="/api/item-icon?name=${encodeURIComponent(focusedSkillObj.equipmentName)}&id=${focusedSkillObj.itemId}"
+                   alt="${focusedSkillObj.equipmentName}"
+                   onerror="handleItemImageError(this)" />
+            </div>
+            <div class="focused-skill-names">
+              <div class="focused-skill-title-row">
+                <span class="focused-skill-title">${focusedSkillObj.icon} ${focusedSkillObj.name}</span>
+                <span class="focused-level-badge">Nv. ${currentSkillLvl}</span>
+              </div>
+              <span class="focused-skill-weapon">${focusedSkillObj.equipmentName}</span>
+            </div>
+          </div>
+          <div class="focused-skill-status-area">
+            ${isTrainingThisSkill ? `
+              <span class="training-live-badge active">
+                <span class="pulse-beacon"></span> Treinando Online Agora
+              </span>
+            ` : isTrainingOtherSkill ? `
+              <span class="training-live-badge other">
+                ⚠️ Treinando Outra Skill (${activeSkillObj?.name})
+              </span>
+            ` : `
+              <span class="training-live-badge idle">
+                🎯 Habilidade Focada
+              </span>
+            `}
+            <div class="focused-level-target">
+              <span class="lvl-current">Nv. ${currentSkillLvl}</span>
+              <span class="lvl-arrow">➔</span>
+              <span class="lvl-next">Nv. ${currentSkillLvl + 1}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra de Progresso Focada de XP -->
+        <div class="focused-xp-section">
+          <div class="focused-xp-topline">
+            <div class="focused-xp-nums">
+              <span class="focused-xp-label">Pontos de Treino (XP da Habilidade):</span>
+              <strong class="focused-xp-count">${needed > 0 ? `${progress.toLocaleString('pt-BR')} / ${needed.toLocaleString('pt-BR')} XP` : `${progress.toLocaleString('pt-BR')} XP`}</strong>
+            </div>
+            <div class="focused-xp-pct-pill">${percent}%</div>
+          </div>
+
+          <div class="focused-xp-bar-bg" title="Progresso atual: ${percent}% (${progress.toLocaleString('pt-BR')} / ${needed.toLocaleString('pt-BR')} XP)">
+            <div class="focused-xp-bar-fill" style="width: ${percent}%">
+              <div class="focused-xp-bar-glow"></div>
+            </div>
+          </div>
+
+          <div class="focused-xp-bottomline">
+            <span class="focused-xp-remaining">
+              ${needed > 0 ? `🎯 Faltam <strong>${remaining.toLocaleString('pt-BR')} XP</strong> para alcançar o nível <strong>${currentSkillLvl + 1}</strong>` : `Aguardando atualização de dados do jogo...`}
+            </span>
+            <span class="focused-xp-target-tag">Meta: Nv. ${currentSkillLvl + 1}</span>
+          </div>
+        </div>
+
+        <!-- Comparativo de Tempo até o Próximo Nível (Online vs Arma de Exercício) -->
+        <div class="training-eta-comparison-grid">
+          <!-- Card 1: Treino Online (Boneco Regular) -->
+          <div class="eta-mode-card online ${isTrainingThisSkill && !training.exercise ? 'current-active' : ''}">
+            <div class="eta-mode-header">
+              <div class="eta-mode-icon">🥋</div>
+              <div class="eta-mode-title-wrap">
+                <span class="eta-mode-title">Treino Online (Dummy)</span>
+                <span class="eta-mode-sub">Boneco público na cidade</span>
+              </div>
+              ${isTrainingThisSkill && !training.exercise ? `<span class="eta-badge-active">Ativo Agora</span>` : `<span class="eta-badge-free">Grátis</span>`}
+            </div>
+
+            <div class="eta-time-display">
+              <span class="eta-time-val">${formattedOnlineEta}</span>
+              <span class="eta-time-sub">estimado até o nível ${currentSkillLvl + 1}</span>
+            </div>
+
+            <div class="eta-details-list">
+              <div class="eta-detail-item">
+                <span class="eta-detail-label">Tempo Necessário:</span>
+                <span class="eta-detail-val"><strong>${formattedOnlineEta}</strong></span>
+              </div>
+              <div class="eta-detail-item">
+                <span class="eta-detail-label">Ritmo de Ataque:</span>
+                <span class="eta-detail-val">1 golpe a cada 2s (1x)</span>
+              </div>
+              <div class="eta-detail-item">
+                <span class="eta-detail-label">Custo:</span>
+                <span class="eta-detail-val text-green">100% Gratuito (0 gp)</span>
+              </div>
+              <div class="eta-detail-item">
+                <span class="eta-detail-label">Consumo de Arma:</span>
+                <span class="eta-detail-val">Nenhum (Ilimitado)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Arma de Exercício (Item Específico) -->
+          <div class="eta-mode-card exercise ${isTrainingThisSkill && training.exercise ? 'current-active' : ''}">
+            <div class="eta-mode-header">
+              <div class="eta-mode-icon">⚡</div>
+              <div class="eta-mode-title-wrap">
+                <span class="eta-mode-title">Arma de Treino (Item)</span>
+                <span class="eta-mode-sub">${focusedSkillObj.equipmentName}</span>
+              </div>
+              <span class="eta-badge-fast">~6.5x Mais Rápido</span>
+            </div>
+
+            <div class="eta-time-display">
+              <span class="eta-time-val fast">${formattedExerciseEta}</span>
+              <span class="eta-time-sub">estimado até o nível ${currentSkillLvl + 1}</span>
+            </div>
+
+            <div class="eta-details-list">
+              <div class="eta-detail-item">
+                <span class="eta-detail-label">Tempo Necessário:</span>
+                <span class="eta-detail-val text-gold"><strong>${formattedExerciseEta}</strong> (~6.5x mais rápido)</span>
+              </div>
+              <div class="eta-detail-item">
+                <span class="eta-detail-label">Cargas Necessárias:</span>
+                <span class="eta-detail-val">~${exerciseCharges.toLocaleString('pt-BR')} cargas</span>
+              </div>
+              <div class="eta-detail-item">
+                <span class="eta-detail-label">Equivalente em Armas:</span>
+                <span class="eta-detail-val">~${weaponsCount500} armas (500 charges)</span>
+              </div>
+              <div class="eta-detail-item">
+                <span class="eta-detail-label">Modo:</span>
+                <span class="eta-detail-val">Avanço massivo por golpe</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner Comparativo de Economia de Tempo -->
+        <div class="eta-comparison-banner">
+          <span class="comparison-banner-icon">💡</span>
+          <div class="comparison-banner-text">
+            <strong>Diferença de ritmo:</strong> O treino com a arma de exercício (<strong>${focusedSkillObj.equipmentName}</strong>) leva apenas <strong>${formattedExerciseEta}</strong>, economizando cerca de <strong>${formattedTimeSaved}</strong> em comparação ao boneco público gratuito (<strong>${formattedOnlineEta}</strong>).
+          </div>
+        </div>
+
+        <!-- Botões de Ação para Iniciar ou Parar o Treino -->
+        <div class="focused-action-row">
+          ${isTrainingThisSkill ? `
+            <button type="button" class="btn-danger btn-training-action" onclick="stopTraining(${slot.id})">
+              ⏹️ Parar Treino Online (${focusedSkillObj.name})
+            </button>
+          ` : isTrainingOtherSkill ? `
+            <button type="button" class="btn-primary btn-training-action" onclick="startOnlineTraining(${slot.id}, '${focusedSkillObj.id}')">
+              🔄 Alternar Treino Online para ${focusedSkillObj.name}
+            </button>
+            <button type="button" class="btn-secondary btn-training-stop-alt" onclick="stopTraining(${slot.id})">
+              ⏹️ Parar Treino de ${activeSkillObj?.name}
+            </button>
+          ` : `
+            <button type="button" class="btn-primary btn-training-action" onclick="startOnlineTraining(${slot.id}, '${focusedSkillObj.id}')">
+              🥋 Iniciar Treino Online (${focusedSkillObj.name})
+            </button>
+          `}
+        </div>
+      </div>
+
+      <div class="picker-label" style="margin-top: 8px; margin-bottom: 6px;">
+        Clique em qualquer uma das 6 habilidades para inspecionar ou treinar:
       </div>
 
       <!-- Grid com os 6 equipamentos de treino -->
       <div class="training-equipment-grid">
         ${HUNTERA_TRAINING_SKILLS.map((sk) => {
-          const isSelected = selectedSkillId === sk.id;
+          const isSelected = focusedSkillId === sk.id;
           const isTrainingThis = training.active && training.skill === sk.id;
           const skData = skills.find(s => s.id === sk.id);
           const lvl = skData ? skData.level : (sk.id === 'magic' ? (char.magicLevel || sess.magicLevel || 0) : 10);
@@ -1044,42 +1288,13 @@ function renderTrainingTab(slot) {
                   ${isTrainingThis ? `
                     <span class="equip-training-tag">Ativo ⚔️</span>
                   ` : isSelected ? `
-                    <span class="equip-selected-tag">Selecionado</span>
+                    <span class="equip-selected-tag">Focado 🎯</span>
                   ` : ''}
                 </div>
               </div>
             </div>
           `;
         }).join('')}
-      </div>
-
-      <!-- Card de Ação do Treino Selecionado -->
-      <div class="training-action-card">
-        <div class="training-selected-summary">
-          <div class="selected-equip-preview">
-            <img class="selected-equip-img"
-                 src="/api/item-icon?name=${encodeURIComponent(selectedSkillObj.equipmentName)}&id=${selectedSkillObj.itemId}"
-                 alt="${selectedSkillObj.equipmentName}"
-                 onerror="handleItemImageError(this)" />
-            <div class="selected-equip-text">
-              <div class="selected-equip-title">${selectedSkillObj.icon} ${selectedSkillObj.name}</div>
-              <div class="selected-equip-item-title">${selectedSkillObj.equipmentName}</div>
-              <div class="selected-equip-desc">${selectedSkillObj.desc} • Nível atual: <strong>${currentSkillLvl}</strong> (${currentSkillPct}%)</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="training-action-buttons">
-          ${isCurrentTrainingSelected ? `
-            <button type="button" class="btn-danger btn-training-action" onclick="stopTraining(${slot.id})">
-              ⏹️ Parar Treino Online
-            </button>
-          ` : `
-            <button type="button" class="btn-primary btn-training-action" onclick="startOnlineTraining(${slot.id}, '${selectedSkillObj.id}')">
-              🥋 Iniciar Treino Online (${selectedSkillObj.name})
-            </button>
-          `}
-        </div>
       </div>
     </div>
   `;
