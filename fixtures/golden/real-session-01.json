@@ -336,5 +336,11 @@
     "lossReductionPercent": 40,
     "equipmentLossPercent": 0
   },
+  "training": {
+    "active": false,
+    "skill": null,
+    "etaMs": null,
+    "exercise": false
+  },
   "gamePlayerId": 232074
 }

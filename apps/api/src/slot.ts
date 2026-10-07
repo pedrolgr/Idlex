@@ -133,7 +133,7 @@ export class Slot {
         this.onBroadcast?.();
       }
 
-      if (msg.type === "death-history" || msg.type === "blessings-status") {
+      if (msg.type === "death-history" || msg.type === "blessings-status" || msg.type === "training-update") {
         this.onBroadcast?.();
       }
 
@@ -405,6 +405,23 @@ export class Slot {
     this.session.resetSession();
     this.status = "connected";
 
+    return this.toJSON();
+  }
+
+  async startTraining(skill: string, repeat = false): Promise<SlotJSON> {
+    await this.ensureSocket();
+    this.socket!.send({
+      type: "start-training",
+      mode: "online",
+      skill,
+      ...(repeat ? { repeat: true } : {}),
+    });
+    return this.toJSON();
+  }
+
+  async leaveTraining(): Promise<SlotJSON> {
+    await this.ensureSocket();
+    this.socket!.send({ type: "leave-training" });
     return this.toJSON();
   }
 

@@ -129,6 +129,13 @@ export interface TransferOfferState {
   receivedAt: number;
 }
 
+export interface TrainingState {
+  active: boolean;
+  skill?: string | null;
+  etaMs?: number | null;
+  exercise?: boolean;
+}
+
 export type PriceMode = "npc" | "auction" | "custom";
 
 export interface HuntSessionJSON {
@@ -208,5 +215,6 @@ export interface HuntSessionJSON {
   transferOffer: TransferOfferState | null;
   deathInfo: DeathInfo;
   blessings: BlessingsState;
+  training?: TrainingState;
   gamePlayerId: number | null;
 }

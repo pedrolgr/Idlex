@@ -378,6 +378,20 @@ export interface CreatureOutfitMessage {
   colors?: OutfitColors;
 }
 
+export interface TrainingUpdateMessage {
+  type: "training-update";
+  active: boolean;
+  skill?: string;
+  etaMs?: number;
+  exercise?: boolean;
+}
+
+export interface IdleTrainingMessage {
+  type: "idle-training";
+  enabled: boolean;
+  offlineSkill?: string | null;
+}
+
 export interface WelcomeMessage {
   type: "welcome";
   playerId?: number;
@@ -429,6 +443,8 @@ export type KnownIncomingMessage =
   | HuntCatalogMessage
   | SystemMessage
   | CreatureOutfitMessage
+  | TrainingUpdateMessage
+  | IdleTrainingMessage
   | WelcomeMessage
   | PongMessage;
 
@@ -461,6 +477,17 @@ export interface StartHuntOutgoing {
 
 export interface LeaveHuntOutgoing {
   type: "leave-hunt";
+}
+
+export interface StartTrainingOutgoing {
+  type: "start-training";
+  mode: "online";
+  skill: string;
+  repeat?: boolean;
+}
+
+export interface LeaveTrainingOutgoing {
+  type: "leave-training";
 }
 
 export interface BlessingBuyOutgoing {
@@ -556,6 +583,8 @@ export type KnownOutgoingMessage =
   | LogoutOutgoing
   | StartHuntOutgoing
   | LeaveHuntOutgoing
+  | StartTrainingOutgoing
+  | LeaveTrainingOutgoing
   | BlessingBuyOutgoing
   | BlessingsOpenOutgoing
   | ReviveOutgoing

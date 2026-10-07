@@ -72,6 +72,7 @@ import type {
   PriceMode,
   SkillSummaryItem,
   SuppliesEntry,
+  TrainingState,
   TransferOfferState,
 } from "./types.js";
 
@@ -197,6 +198,12 @@ export class HuntSession {
     freeUntilLevel: 80,
     lossReductionPercent: 40,
     equipmentLossPercent: 0,
+  };
+  training: TrainingState = {
+    active: false,
+    skill: null,
+    etaMs: null,
+    exercise: false,
   };
 
   constructor({
@@ -648,6 +655,16 @@ export class HuntSession {
           this.gamePlayerId = (message as any).playerId;
         }
         break;
+      case "training-update": {
+        const trainMsg = message as any;
+        this.training = {
+          active: Boolean(trainMsg.active),
+          skill: trainMsg.skill ?? null,
+          etaMs: typeof trainMsg.etaMs === "number" ? trainMsg.etaMs : null,
+          exercise: Boolean(trainMsg.exercise),
+        };
+        break;
+      }
       case "action-bar-presets":
         handleActionBarPresets(this, message as any);
         break;
@@ -921,6 +938,7 @@ export class HuntSession {
       transferOffer: this.transferOffer,
       deathInfo: { ...this.deathInfo },
       blessings: { ...this.blessings },
+      training: { ...this.training },
       gamePlayerId: this.gamePlayerId,
     };
   }

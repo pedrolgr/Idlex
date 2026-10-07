@@ -61,8 +61,21 @@ export const ITEM_ID_TO_SLUG: Record<number, string> = {
   3299: "poison_dagger",
   3429: "black_shield",
   5914: "yellow_piece_of_cloth",
-  10290: "mini_mummy",
   37109: "sliver",
+  // Exercise Training Weapons & Shield (6 tipos de treino)
+  35285: "lasting_exercise_sword",
+  35286: "lasting_exercise_axe",
+  35287: "lasting_exercise_club",
+  35288: "lasting_exercise_bow",
+  35290: "lasting_exercise_wand",
+  44067: "lasting_exercise_shield",
+  28552: "exercise_sword",
+  28553: "exercise_axe",
+  28554: "exercise_club",
+  28555: "exercise_bow",
+  28556: "exercise_rod",
+  28557: "exercise_wand",
+  44065: "exercise_shield",
 };
 
 export function sanitizeItemName(rawName: string | null | undefined): string {
