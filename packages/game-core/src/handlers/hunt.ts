@@ -40,18 +40,26 @@ export function handleHuntAnalyzerSession(
 ): void {
   if (typeof message.startedAt === "number") {
     session.startedAt = message.startedAt;
+    if (!session.localStartedAt) {
+      session.localStartedAt = message.startedAt;
+    }
   }
   if (typeof message.durationMs === "number") {
     session.durationMs = message.durationMs;
   }
+  session.huntActive = true;
 }
 
 export function handleHuntAnalyzerUpdate(
   session: HuntSession,
   message: HuntAnalyzerUpdateMessage,
 ): void {
-  if (typeof message.startedAt === "number")
+  if (typeof message.startedAt === "number") {
     session.startedAt = message.startedAt;
+    if (!session.localStartedAt) {
+      session.localStartedAt = message.startedAt;
+    }
+  }
   if (typeof message.durationMs === "number")
     session.durationMs = message.durationMs;
   if (
@@ -109,6 +117,7 @@ export function handleHuntAnalyzerUpdate(
   if (Array.isArray(message.loot) && session.loot.length === 0) {
     session.loot = message.loot as any;
   }
+  session.huntActive = true;
 }
 
 export function handleHuntLeavePending(
@@ -124,13 +133,28 @@ export function handleInstanceEnter(
   session: HuntSession,
   message: InstanceEnterMessage,
 ): void {
-  if (typeof message.scenarioId === "string") {
-    // Se entrou em cenário da cidade, não está mais em hunt
-    if (
-      message.scenarioId === "city" ||
-      message.scenarioId.includes("temple")
-    ) {
-      session.huntActive = false;
+  const scenario = String(message.scenarioId || "").toLowerCase();
+  const instance = String(message.instanceId || "").toLowerCase();
+
+  const isCityOrTemple =
+    scenario === "city" ||
+    scenario === "main-city" ||
+    scenario.includes("city") ||
+    scenario.includes("temple") ||
+    instance === "city-global" ||
+    instance.includes("city") ||
+    instance.includes("temple");
+
+  if (isCityOrTemple) {
+    session.huntActive = false;
+    session.leavePendingMs = null;
+    session.huntPending = false;
+  } else if (message.scenarioId) {
+    session.huntActive = true;
+    if (!session.huntId) {
+      session.huntId = message.scenarioId;
     }
+    session.leavePendingMs = null;
+    session.huntPending = false;
   }
 }

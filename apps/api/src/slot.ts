@@ -67,6 +67,39 @@ export class Slot {
     this.onBroadcast = onBroadcast;
   }
 
+  resolveHuntDetailsFromCatalog(): void {
+    if (!this.session.huntId || this.catalog.length === 0) return;
+    const found = this.catalog.find(
+      (h) => ((h as any).id ?? (h as any).huntId) === this.session.huntId,
+    );
+    if (found) {
+      if (!this.session.huntName || this.session.huntName === this.session.huntId) {
+        this.session.huntName =
+          (found as any).name ?? (found as any).displayName ?? this.session.huntId;
+      }
+      if (Array.isArray((found as any).monsters) && !this.session.validMonsterNames) {
+        this.session.validMonsterNames = new Set(
+          (found as any).monsters.map((m: any) =>
+            (typeof m === "string" ? m : m.name).toLowerCase(),
+          ),
+        );
+      }
+    }
+  }
+
+  syncHuntStatus(): void {
+    if (this.status === "idle" || this.status === "logging_in" || this.status === "error") {
+      return;
+    }
+    if (this.session.deathInfo?.isDead) {
+      this.status = "dead";
+    } else if (this.session.huntActive) {
+      this.status = "hunting";
+    } else if (this.status === "hunting") {
+      this.status = "connected";
+    }
+  }
+
   setupSocketEvents(socket: GameSocket): void {
     socket.onMessage((msg: IncomingGameMessage) => {
       this.session.handleMessage(msg);
@@ -79,6 +112,21 @@ export class Slot {
       if (msg.type === "hunt-catalog" && Array.isArray((msg as any).hunts)) {
         this.catalog = (msg as any).hunts;
         this.catalogLoaded = true;
+        this.resolveHuntDetailsFromCatalog();
+        this.syncHuntStatus();
+        this.onBroadcast?.();
+      }
+
+      if (
+        msg.type === "instance-enter" ||
+        msg.type === "hunt-pending" ||
+        msg.type === "hunt-analyzer-session" ||
+        msg.type === "hunt-analyzer-update" ||
+        msg.type === "hunt-leave-pending"
+      ) {
+        this.resolveHuntDetailsFromCatalog();
+        this.syncHuntStatus();
+        this.onBroadcast?.();
       }
 
       if (msg.type === "player-stats" && this.character) {
@@ -93,6 +141,7 @@ export class Slot {
         if (typeof msg.mana === "number") this.character.mana = msg.mana;
         if (typeof msg.maxMana === "number")
           this.character.maxMana = msg.maxMana;
+        this.syncHuntStatus();
         this.onBroadcast?.();
       }
 
@@ -105,6 +154,7 @@ export class Slot {
         if (typeof msg.mana === "number") this.character.mana = msg.mana;
         if (typeof msg.maxMana === "number")
           this.character.maxMana = msg.maxMana;
+        this.syncHuntStatus();
         this.onBroadcast?.();
       }
 
@@ -146,18 +196,45 @@ export class Slot {
       if (msg.type === "system-message" && msg.message) {
         console.log(`[Slot ${this.id}] Mensagem do sistema:`, msg.message);
         const lowerMsg = String(msg.message).toLowerCase();
-        if (
+        const isExternalLogout =
           lowerMsg.includes("desconectado") ||
+          lowerMsg.includes("deslogado") ||
           lowerMsg.includes("disconnected") ||
           lowerMsg.includes("outro local") ||
-          lowerMsg.includes("logged out")
-        ) {
+          lowerMsg.includes("outro dispositivo") ||
+          lowerMsg.includes("outra sessão") ||
+          lowerMsg.includes("outra sessao") ||
+          lowerMsg.includes("outra conexão") ||
+          lowerMsg.includes("outra conexao") ||
+          lowerMsg.includes("logged out") ||
+          lowerMsg.includes("conexão simultânea") ||
+          lowerMsg.includes("conexao simultanea") ||
+          lowerMsg.includes("login simultâneo") ||
+          lowerMsg.includes("login simultaneo") ||
+          lowerMsg.includes("sessão expirada") ||
+          lowerMsg.includes("sessao expirada") ||
+          lowerMsg.includes("sessão finalizada") ||
+          lowerMsg.includes("sessao finalizada") ||
+          lowerMsg.includes("sessão encerrada") ||
+          lowerMsg.includes("sessao encerrada") ||
+          lowerMsg.includes("você foi desconectado") ||
+          lowerMsg.includes("voce foi desconectado") ||
+          lowerMsg.includes("already connected") ||
+          lowerMsg.includes("já conectado") ||
+          lowerMsg.includes("ja conectado") ||
+          lowerMsg.includes("kicked") ||
+          lowerMsg.includes("expulso");
+
+        if (isExternalLogout) {
           console.warn(
             `[Slot ${this.id}] Desconexão sinalizada pelo sistema:`,
             msg.message,
           );
-          void this.disconnect(String(msg.message));
-          this.onBroadcast?.();
+          void this.disconnect(
+            String(msg.message) || "Desconectado: o personagem foi conectado em outro local.",
+          ).then(() => {
+            this.onBroadcast?.();
+          });
           return;
         }
       }
@@ -180,6 +257,29 @@ export class Slot {
         this.socket = null;
       }
       if (this.status !== "idle" && this.character && !this.reconnecting) {
+        const reasonLower = String(event?.reason || "").toLowerCase();
+        const isExplicitDisconnect =
+          event?.code === 1008 ||
+          event?.code === 4001 ||
+          reasonLower.includes("desconectado") ||
+          reasonLower.includes("deslogado") ||
+          reasonLower.includes("outro local") ||
+          reasonLower.includes("duplicate") ||
+          reasonLower.includes("another") ||
+          reasonLower.includes("kicked");
+
+        if (isExplicitDisconnect) {
+          console.warn(
+            `[Slot ${this.id}] Desconexão explícita detectada via close event.`,
+          );
+          void this.disconnect(
+            event?.reason || "Desconectado: o personagem foi conectado em outro local.",
+          ).then(() => {
+            this.onBroadcast?.();
+          });
+          return;
+        }
+
         const isTransfer = event?.code === 4003 || event?.reason === "transfer";
         void this.handleAutoReconnect(isTransfer);
       }
@@ -194,7 +294,7 @@ export class Slot {
   }
 
   async handleAutoReconnect(isTransfer: boolean): Promise<void> {
-    if (this.reconnecting || this.status === "idle" || !this.character) return;
+    if (this.reconnecting || (this.status as SlotStatus) === "idle" || !this.character) return;
     this.reconnecting = true;
     console.log(
       `[Slot ${this.id}] Auto-reconexão iniciada (${isTransfer ? "transferência de mundo" : "queda inesperada"})...`
@@ -209,12 +309,19 @@ export class Slot {
     }
 
     let attempts = 0;
-    const maxAttempts = 6;
+    const maxAttempts = isTransfer ? 6 : 3;
     while (attempts < maxAttempts && (this.status as SlotStatus) !== "idle") {
       attempts++;
       try {
         console.log(`[Slot ${this.id}] Tentativa de reconexão ${attempts}/${maxAttempts}...`);
         await this.ensureSocket();
+
+        // Se o slot foi desconectado pelo usuário durante a espera
+        if ((this.status as SlotStatus) === "idle") {
+          this.reconnecting = false;
+          return;
+        }
+
         this.reconnecting = false;
 
         if (prevHuntActive && prevHuntId && this.socket && this.socket.isOpen()) {
@@ -229,18 +336,54 @@ export class Slot {
         console.log(`[Slot ${this.id}] Reconectado com sucesso após fechamento!`);
         this.onBroadcast?.();
         return;
-      } catch (err) {
+      } catch (err: any) {
         console.warn(
           `[Slot ${this.id}] Falha na tentativa ${attempts} de reconexão: ${(err as Error).message}`
         );
-        await sleep(isTransfer ? 1500 : 2500);
+
+        if ((this.status as SlotStatus) === "idle") {
+          this.reconnecting = false;
+          return;
+        }
+
+        const errMsg = String(err?.message || "").toLowerCase();
+        const isExternalOrAuth =
+          err?.status === 401 ||
+          err?.status === 403 ||
+          err?.status === 409 ||
+          errMsg.includes("já conectado") ||
+          errMsg.includes("ja conectado") ||
+          errMsg.includes("already") ||
+          errMsg.includes("in use") ||
+          errMsg.includes("outro local") ||
+          errMsg.includes("sessão inválida") ||
+          errMsg.includes("sessao invalida") ||
+          errMsg.includes("credenciais inválidas") ||
+          errMsg.includes("unauthorized");
+
+        if (isExternalOrAuth) {
+          console.warn(
+            `[Slot ${this.id}] Detectado conflito de login externo ou sessão expirada. Abortando reconexão.`,
+          );
+          this.reconnecting = false;
+          await this.disconnect(
+            err?.status === 409 || errMsg.includes("já conectado") || errMsg.includes("already")
+              ? "Desconectado: o personagem já está conectado em outro local."
+              : "Desconectado: a sessão foi encerrada em outro local.",
+          );
+          this.onBroadcast?.();
+          return;
+        }
+
+        await sleep(isTransfer ? 1500 : 2000);
       }
     }
 
     this.reconnecting = false;
     if ((this.status as SlotStatus) !== "idle") {
-      this.status = "error";
-      this.errorMessage = "Conexão perdida com o servidor do jogo.";
+      await this.disconnect(
+        "Conexão perdida com o servidor do jogo. O personagem pode ter sido desconectado em outro local.",
+      );
       this.onBroadcast?.();
     }
   }
@@ -268,11 +411,21 @@ export class Slot {
           `[Slot ${this.id}] Socket reconectado via gameTicket com sucesso!`,
         );
         return this.socket;
-      } catch (err) {
+      } catch (err: any) {
         console.warn(
           `[Slot ${this.id}] Erro ao renovar ticket com client atual:`,
           (err as Error).message,
         );
+        const errMsg = String(err?.message || "").toLowerCase();
+        const isConflict =
+          err?.status === 409 ||
+          errMsg.includes("já conectado") ||
+          errMsg.includes("ja conectado") ||
+          errMsg.includes("already") ||
+          errMsg.includes("in use");
+        if (isConflict) {
+          throw err;
+        }
       }
     }
 
@@ -360,6 +513,9 @@ export class Slot {
         await sleep(200);
       }
 
+      this.resolveHuntDetailsFromCatalog();
+      this.syncHuntStatus();
+
       if (this.session.deathInfo?.isDead) {
         this.status = "dead";
       } else {
@@ -401,16 +557,47 @@ export class Slot {
   }
 
   async leaveHunt(): Promise<SlotJSON> {
-    await this.ensureSocket();
+    if (this.socket && this.socket.isOpen()) {
+      try {
+        console.log(`[Slot ${this.id}] Enviando leave-hunt ao servidor...`);
+        this.socket.send({ type: "leave-hunt" });
+      } catch (err) {
+        console.warn(`[Slot ${this.id}] Erro ao enviar leave-hunt:`, err);
+      }
 
-    try {
-      this.socket!.send({ type: "leave-hunt" });
-    } catch {}
+      // Aguarda até 6.5s verificando se o servidor confirmou a saída para a cidade
+      const startWait = Date.now();
+      let retrySent = false;
+      while (Date.now() - startWait < 6500 && this.session.huntActive) {
+        await sleep(250);
+        // Se após 2.5s o servidor não confirmou saída nem enviou leavePending, reenvia leave-hunt
+        if (
+          !retrySent &&
+          Date.now() - startWait > 2500 &&
+          this.session.huntActive &&
+          !this.session.leavePendingMs
+        ) {
+          retrySent = true;
+          try {
+            console.log(`[Slot ${this.id}] Reenviando leave-hunt após 2.5s sem confirmação...`);
+            this.socket.send({ type: "leave-hunt" });
+          } catch {}
+        }
+      }
+    }
 
-    await sleep(5200);
-    this.session.resetSession();
-    this.status = "connected";
+    // Se o servidor confirmou que saiu da caçada (session.huntActive virou false) ou socket caiu:
+    if (!this.session.huntActive || !this.socket || !this.socket.isOpen()) {
+      console.log(`[Slot ${this.id}] Saída da caçada confirmada.`);
+      this.session.resetSession();
+      this.status = this.socket && this.socket.isOpen() ? "connected" : "idle";
+    } else {
+      console.warn(
+        `[Slot ${this.id}] Servidor ainda não confirmou saída da caçada após timeout. Mantendo status hunting.`,
+      );
+    }
 
+    this.onBroadcast?.();
     return this.toJSON();
   }
 
@@ -437,18 +624,18 @@ export class Slot {
     this.errorMessage = reason || null;
     this.accountPassword = null;
 
-    if (this.socket) {
+    const sock = this.socket;
+    this.socket = null;
+    if (sock) {
       try {
         if (this.session.huntActive) {
-          this.socket.send({ type: "leave-hunt" });
+          sock.send({ type: "leave-hunt" });
         }
-        this.socket.logout();
-        await sleep(150);
+        sock.logout();
       } catch {}
       try {
-        this.socket.close();
+        sock.close();
       } catch {}
-      this.socket = null;
     }
 
     this.client = null;
@@ -482,7 +669,7 @@ export class Slot {
 
   async dismissDeath(): Promise<SlotJSON> {
     this.session.dismissDeath();
-    this.status = this.session.huntActive ? "hunting" : "connected";
+    this.status = this.session.huntActive ? "hunting" : (this.socket && this.socket.isOpen() ? "connected" : "idle");
     return this.toJSON();
   }
 
@@ -503,7 +690,13 @@ export class Slot {
 
   toJSON(): SlotJSON {
     let currentStatus = this.status;
-    if (this.session.deathInfo?.isDead) {
+    if (
+      this.status === "idle" ||
+      this.status === "logging_in" ||
+      this.status === "error"
+    ) {
+      currentStatus = this.status;
+    } else if (this.session.deathInfo?.isDead) {
       currentStatus = "dead";
     } else if (this.session.huntActive) {
       currentStatus = "hunting";

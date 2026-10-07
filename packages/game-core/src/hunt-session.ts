@@ -726,6 +726,8 @@ export class HuntSession {
       elapsedMs = this.durationMs;
     } else if (this.localStartedAt) {
       elapsedMs = Math.max(0, Date.now() - this.localStartedAt);
+    } else if (this.startedAt) {
+      elapsedMs = Math.max(0, Date.now() - this.startedAt);
     }
     return formatDuration(elapsedMs);
   }
@@ -846,7 +848,9 @@ export class HuntSession {
         ? this.durationMs
         : this.localStartedAt
           ? Math.max(0, Date.now() - this.localStartedAt)
-          : 0;
+          : this.startedAt
+            ? Math.max(0, Date.now() - this.startedAt)
+            : 0;
 
     const staminaMs = this.playerState.staminaMs ?? null;
     const staminaFormatted = formatStamina(staminaMs);

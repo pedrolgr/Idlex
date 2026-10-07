@@ -823,8 +823,8 @@ function renderSlot(slot) {
   card.dataset.currentStatus = nextStatus;
   card.dataset.currentError = nextError;
 
-  if (slot.status === 'idle') {
-    statusPill.textContent = 'Desconectado';
+  if (slot.status === 'idle' || slot.status === 'error') {
+    statusPill.textContent = slot.status === 'error' ? 'Erro' : 'Desconectado';
     body.innerHTML = renderLoginForm(slot.id, slot.errorMessage);
     attachLoginHandler(slot.id);
   } else if (slot.status === 'logging_in') {
@@ -851,6 +851,10 @@ function renderSlot(slot) {
     statusPill.textContent = 'Caçando';
     body.innerHTML = renderHuntingView(slot);
     attachHuntingHandlers(slot.id);
+  } else {
+    statusPill.textContent = 'Desconectado';
+    body.innerHTML = renderLoginForm(slot.id, slot.errorMessage);
+    attachLoginHandler(slot.id);
   }
 }
 
@@ -1894,7 +1898,10 @@ function renderHuntingView(slot) {
         <button type="button" class="btn-header-party" onclick="openPartyFriendsModal(${slot.id})" title="Ver Lista de Amigos e Party">
           👥 Amigos ${sess.party?.members?.length ? `<span class="party-badge-indicator in-party" title="${sess.party.members.length} membros na party">Party (${sess.party.members.length})</span>` : (sess.friends?.length ? `<span class="party-badge-indicator" title="${sess.friends.length} amigos">${sess.friends.length}</span>` : '')}
         </button>
-        <button class="btn-danger btn-leave-hunt" data-slot="${slot.id}">🚪 Sair da Caçada</button>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-secondary btn-logout" data-slot="${slot.id}" title="Desconectar do slot">Sair</button>
+          <button class="btn-danger btn-leave-hunt" data-slot="${slot.id}">🚪 Sair da Caçada</button>
+        </div>
       </div>
     </div>
 
@@ -2584,6 +2591,21 @@ window.setHuntSortMode = function (slotId, mode) {
 };
 
 function attachHuntingHandlers(slotId) {
+  const btnLogout = document.querySelector(`.hunting-banner .btn-logout[data-slot="${slotId}"]`);
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+      btnLogout.disabled = true;
+      btnLogout.textContent = 'Saindo...';
+      try {
+        await fetch(`/api/slots/${slotId}/logout`, { method: 'POST' });
+      } catch (err) {
+        console.error('Erro ao deslogar:', err);
+        btnLogout.disabled = false;
+        btnLogout.textContent = 'Sair';
+      }
+    });
+  }
+
   const btnLeave = document.querySelector(`.btn-leave-hunt[data-slot="${slotId}"]`);
   if (btnLeave) {
     btnLeave.addEventListener('click', async () => {
@@ -2591,7 +2613,16 @@ function attachHuntingHandlers(slotId) {
       btnLeave.textContent = '🚪 Saindo (5s)...';
 
       try {
-        await fetch(`/api/slots/${slotId}/hunt/leave`, { method: 'POST' });
+        const res = await fetch(`/api/slots/${slotId}/hunt/leave`, { method: 'POST' });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => null);
+        if (data && data.status === 'hunting') {
+          btnLeave.disabled = false;
+          btnLeave.textContent = '🚪 Tentar Sair Novamente';
+        }
       } catch (err) {
         alert('Erro ao sair da caçada: ' + err.message);
         btnLeave.disabled = false;

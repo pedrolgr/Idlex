@@ -451,7 +451,11 @@ export async function createServerApp(): Promise<{
         if (!slot) {
           return reply.status(404).send({ error: "Slot não encontrado" });
         }
-        await slot.disconnect();
+        try {
+          await slot.disconnect();
+        } catch (err) {
+          console.error(`[Slot ${slot.id}] Erro ao desconectar:`, err);
+        }
         broadcastSSE();
         return reply.send(slot.toJSON());
       },
