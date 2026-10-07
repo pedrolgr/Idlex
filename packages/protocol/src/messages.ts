@@ -167,7 +167,7 @@ export interface BestiaryProgressMessage {
 }
 
 export interface MarketPricesMessage {
-  type: "market-prices";
+  type: "market-prices" | "item-values";
   npc?: Array<[number, number]>;
   auction?: Array<[number, number]>;
 }

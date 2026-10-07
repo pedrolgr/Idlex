@@ -65,6 +65,17 @@ test("Fastify Server App: slots API endpoints", async () => {
     assert.equal(slot1.id, 1);
     assert.equal(slot1.status, "idle");
 
+    // POST /api/slots/1/price-mode -> "auction"
+    const resPriceMode = await app.inject({
+      method: "POST",
+      url: "/api/slots/1/price-mode",
+      headers: { cookie },
+      payload: { mode: "auction" },
+    });
+    assert.equal(resPriceMode.statusCode, 200);
+    const slotAfterMode = resPriceMode.json();
+    assert.equal(slotAfterMode.session.priceMode, "auction");
+
     // Invalid slot index
     const resInvalid = await app.inject({
       method: "GET",

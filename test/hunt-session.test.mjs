@@ -577,6 +577,17 @@ test("HuntSession: supports pricing modes (npc, auction, custom) and custom pric
   assert.equal(json.priceMode, "custom");
   assert.equal(json.itemsValue, 1200); // 2 * 600
   assert.equal(json.lootValue, 1200);
+
+  // Também suporta atualização via mensagem oficial do servidor "item-values"
+  session.setPriceMode("auction");
+  session.handleMessage({
+    type: "item-values",
+    npc: [[5914, 200]],
+    auction: [[5914, 800]],
+  });
+  json = session.toJSON();
+  assert.equal(json.itemsValue, 1600); // 2 * 800
+  assert.equal(json.lootValue, 1600);
 });
 
 test("HuntSession: includes gold in bag directly into profit/balance", () => {

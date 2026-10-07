@@ -612,6 +612,7 @@ export class HuntSession {
         handleBestiaryProgress(this, message as any);
         break;
       case "market-prices":
+      case "item-values":
         handleMarketPrices(this, message as any);
         break;
       case "creature-say":
