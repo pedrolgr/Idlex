@@ -14,6 +14,8 @@ const state = {
   selectedTrainingSkills: ['sword', 'sword', 'sword', 'sword'],
   huntFilters: ['', '', '', ''],
   huntViewModes: ['cards', 'cards', 'cards', 'cards'],
+  huntFilterLevels: ['all', 'all', 'all', 'all'],
+  huntSortModes: ['level', 'level', 'level', 'level'],
 };
 
 const HUNTERA_TRAINING_SKILLS = [
@@ -277,7 +279,12 @@ function getHuntSuitability(playerLevel, huntInfo) {
 
 function getMonsterAvatarUrl(monster) {
   if (!monster || !monster.outfitId) return '/favicon.svg';
-  return `/api/avatar?outfitId=${monster.outfitId}&head=0&body=0&legs=0&feet=0`;
+  const colors = monster.outfitColors || {};
+  const head = colors.head ?? 0;
+  const body = colors.body ?? 0;
+  const legs = colors.legs ?? 0;
+  const feet = colors.feet ?? 0;
+  return `/api/avatar?outfitId=${monster.outfitId}&head=${head}&body=${body}&legs=${legs}&feet=${feet}`;
 }
 
 function getMonsterElementalTraits(elements) {
@@ -379,7 +386,7 @@ function getSubTabHash(subtab, sess) {
   if (!sess) return '';
   switch (subtab) {
     case 'monsters':
-      return `${sess.monsterDeaths || 0}:${(sess.killsDetailed || []).map(k => `${k.name}:${k.count}:${k.bestiaryKills}`).join('|')}`;
+      return `${sess.huntId || ''}:${sess.monsterDeaths || 0}:${(sess.killsDetailed || []).map(k => `${k.name}:${k.count}:${k.bestiaryKills}`).join('|')}`;
     case 'actionbar':
       return JSON.stringify(sess.actionBar?.slots || []);
     case 'supplies':
@@ -884,16 +891,53 @@ function renderConnectedView(slot) {
     { name: 'Reckless', monsterCount: 8 },
   ];
 
-  // Filtro de caçadas por texto (nome da caçada ou nome de monstros)
+  // Contadores de adequação de nível
+  let idealCount = 0;
+  let challengingCount = 0;
+  let easyCount = 0;
+  for (const h of catalog) {
+    const l = getHuntLevelInfo(h);
+    const s = getHuntSuitability(char.level, l);
+    if (s.status === 'ideal') idealCount++;
+    else if (s.status === 'challenging') challengingCount++;
+    else if (s.status === 'easy') easyCount++;
+  }
+
+  // Filtro de caçadas por texto e por adequação de nível
   const filterQuery = (state.huntFilters[slot.id - 1] || '').trim().toLowerCase();
-  const filteredHunts = filterQuery
-    ? catalog.filter((h) => {
-        const name = (h.name ?? h.displayName ?? h.id ?? '').toLowerCase();
-        if (name.includes(filterQuery)) return true;
-        const monsters = (h.monsters || []).map((m) => (m.name || '').toLowerCase()).join(' ');
-        return monsters.includes(filterQuery);
-      })
-    : catalog;
+  const levelFilter = state.huntFilterLevels?.[slot.id - 1] || 'all';
+  const sortMode = state.huntSortModes?.[slot.id - 1] || 'level';
+
+  let filteredHunts = catalog.filter((h) => {
+    if (filterQuery) {
+      const name = (h.name ?? h.displayName ?? h.id ?? '').toLowerCase();
+      const monsters = (h.monsters || []).map((m) => (m.name || '').toLowerCase()).join(' ');
+      if (!name.includes(filterQuery) && !monsters.includes(filterQuery)) return false;
+    }
+    if (levelFilter !== 'all') {
+      const lvlInfo = getHuntLevelInfo(h);
+      const suit = getHuntSuitability(char.level, lvlInfo);
+      if (levelFilter === 'ideal' && suit.status !== 'ideal') return false;
+      if (levelFilter === 'challenging' && suit.status !== 'challenging') return false;
+      if (levelFilter === 'safe' && suit.status !== 'easy') return false;
+    }
+    return true;
+  });
+
+  // Ordenação de caçadas
+  if (sortMode === 'level') {
+    filteredHunts.sort((a, b) => {
+      const la = getHuntLevelInfo(a).rec;
+      const lb = getHuntLevelInfo(b).rec;
+      return la - lb;
+    });
+  } else if (sortMode === 'name') {
+    filteredHunts.sort((a, b) => {
+      const na = a.name ?? a.displayName ?? a.id ?? '';
+      const nb = b.name ?? b.displayName ?? b.id ?? '';
+      return na.localeCompare(nb);
+    });
+  }
 
   const selectedHuntLvl = getHuntLevelInfo(selectedHunt);
   const selectedHuntSuit = getHuntSuitability(char.level, selectedHuntLvl);
@@ -986,14 +1030,20 @@ function renderConnectedView(slot) {
           ` : `
             <!-- Topo com Título e Alternador de Modo (Cards vs Lista) -->
             <div class="hunt-picker-header">
-              <div class="picker-label">Selecione a Caçada (${catalog.length} disponíveis)</div>
-              <div class="hunt-view-toggle">
-                <button type="button" class="btn-view-toggle ${(state.huntViewModes[slot.id - 1] || 'cards') === 'cards' ? 'active' : ''}" onclick="toggleHuntViewMode(${slot.id}, 'cards')" title="Visualização em Cards Detalhados">
-                  🃏 Cards
-                </button>
-                <button type="button" class="btn-view-toggle ${(state.huntViewModes[slot.id - 1] || 'cards') === 'select' ? 'active' : ''}" onclick="toggleHuntViewMode(${slot.id}, 'select')" title="Visualização em Lista Compacta">
-                  📜 Lista
-                </button>
+              <div class="picker-label">Selecione a Caçada (${filteredHunts.length}/${catalog.length})</div>
+              <div class="hunt-header-actions">
+                <select class="hunt-sort-select" onchange="setHuntSortMode(${slot.id}, this.value)" title="Ordenar caçadas">
+                  <option value="level" ${sortMode === 'level' ? 'selected' : ''}>📶 Por Nível</option>
+                  <option value="name" ${sortMode === 'name' ? 'selected' : ''}>🔤 Por Nome</option>
+                </select>
+                <div class="hunt-view-toggle">
+                  <button type="button" class="btn-view-toggle ${(state.huntViewModes[slot.id - 1] || 'cards') === 'cards' ? 'active' : ''}" onclick="toggleHuntViewMode(${slot.id}, 'cards')" title="Visualização em Cards Detalhados">
+                    🃏 Cards
+                  </button>
+                  <button type="button" class="btn-view-toggle ${(state.huntViewModes[slot.id - 1] || 'cards') === 'select' ? 'active' : ''}" onclick="toggleHuntViewMode(${slot.id}, 'select')" title="Visualização em Lista Compacta">
+                    📜 Lista
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1004,6 +1054,22 @@ function renderConnectedView(slot) {
               ${(state.huntFilters[slot.id - 1] || '') ? `
                 <button type="button" class="btn-clear-search" onclick="clearHuntSearch(${slot.id})">✕</button>
               ` : ''}
+            </div>
+
+            <!-- Chips de Filtro Rápido por Adequação de Nível -->
+            <div class="hunt-filter-chips">
+              <button type="button" class="chip-filter ${levelFilter === 'all' ? 'active' : ''}" onclick="setHuntFilterLevel(${slot.id}, 'all')" title="Todas as caçadas">
+                Todas (${catalog.length})
+              </button>
+              <button type="button" class="chip-filter ideal ${levelFilter === 'ideal' ? 'active' : ''}" onclick="setHuntFilterLevel(${slot.id}, 'ideal')" title="Caçadas ideais para seu nível">
+                ⭐ Nível Ideal (${idealCount})
+              </button>
+              <button type="button" class="chip-filter challenging ${levelFilter === 'challenging' ? 'active' : ''}" onclick="setHuntFilterLevel(${slot.id}, 'challenging')" title="Caçadas desafiadoras">
+                🔥 Desafio (${challengingCount})
+              </button>
+              <button type="button" class="chip-filter easy ${levelFilter === 'safe' ? 'active' : ''}" onclick="setHuntFilterLevel(${slot.id}, 'safe')" title="Caçadas fáceis / XP baixa">
+                ❄️ Fáceis (${easyCount})
+              </button>
             </div>
 
             ${(state.huntViewModes[slot.id - 1] || 'cards') === 'cards' ? `
@@ -1017,7 +1083,7 @@ function renderConnectedView(slot) {
                   const lvlInfo = getHuntLevelInfo(h);
                   const suit = getHuntSuitability(char.level, lvlInfo);
                   const firstMonster = h.monsters?.[0];
-                  const avatarSrc = firstMonster?.outfitId ? `/api/avatar?outfitId=${firstMonster.outfitId}&head=0&body=0&legs=0&feet=0` : '/favicon.svg';
+                  const avatarSrc = getMonsterAvatarUrl(firstMonster);
                   const monsterNames = (h.monsters || []).map(m => m.name).join(', ') || 'Monstros desconhecidos';
 
                   // Obter fraquezas dos monstros desta hunt
@@ -1928,28 +1994,58 @@ function renderSubTabContent(slotId, subtab, sess) {
       bestiaryKills: null,
     }));
 
-    if (killsList.length === 0) {
-      return '<div style="color: var(--text-dim); font-size: 12px; text-align: center; padding: 30px 0;">Aguardando primeiro abate...</div>';
-    }
-
     const catalog = state.catalogs[slotId - 1] || [];
     const currentHunt = catalog.find((h) => (h.id ?? h.huntId) === (sess.huntId ?? state.selectedHunts[slotId - 1])) || catalog.find((h) => h.name === sess.huntName);
+    const catalogMonsters = currentHunt?.monsters || [];
 
-    return killsList.map((item) => {
-      // Procura monstros na caçada correspondente para dados de avatar e fraquezas
-      let monsterData = null;
-      if (currentHunt?.monsters) {
+    let displayList = [];
+    if (catalogMonsters.length > 0) {
+      displayList = catalogMonsters.map((cm) => {
+        const kill = killsList.find((k) => k.name.toLowerCase() === cm.name.toLowerCase());
+        const bestiaryKills = kill?.bestiaryKills ?? sess?.bestiary?.kills?.[cm.bestiaryId || cm.name.toLowerCase()] ?? null;
+        return {
+          name: cm.name,
+          count: kill ? kill.count : 0,
+          bestiaryKills,
+          monsterData: cm,
+        };
+      });
+
+      // Inclui monstros que foram abatidos mas porventura não constavam no catálogo
+      killsList.forEach((k) => {
+        if (!displayList.some((d) => d.name.toLowerCase() === k.name.toLowerCase())) {
+          displayList.push({
+            name: k.name,
+            count: k.count,
+            bestiaryKills: k.bestiaryKills,
+            monsterData: null,
+          });
+        }
+      });
+
+      // Ordena por maior número de abates na sessão
+      displayList.sort((a, b) => b.count - a.count);
+    } else {
+      displayList = killsList.map((k) => ({ ...k, monsterData: null }));
+    }
+
+    if (displayList.length === 0) {
+      return '<div style="color: var(--text-dim); font-size: 12px; text-align: center; padding: 30px 0;">Aguardando início da caçada...</div>';
+    }
+
+    return displayList.map((item) => {
+      let monsterData = item.monsterData;
+      if (!monsterData && currentHunt?.monsters) {
         monsterData = currentHunt.monsters.find((m) => m.name.toLowerCase() === item.name.toLowerCase());
       }
       if (!monsterData) {
-        // Tenta achar em qualquer caçada do catálogo
         for (const h of catalog) {
           const found = h.monsters?.find((m) => m.name.toLowerCase() === item.name.toLowerCase());
           if (found) { monsterData = found; break; }
         }
       }
 
-      const avatarSrc = monsterData?.outfitId ? `/api/avatar?outfitId=${monsterData.outfitId}&head=0&body=0&legs=0&feet=0` : '/favicon.svg';
+      const avatarSrc = getMonsterAvatarUrl(monsterData);
       const traits = getMonsterElementalTraits(monsterData?.elements);
 
       return `
@@ -1961,7 +2057,9 @@ function renderSubTabContent(slotId, subtab, sess) {
             <div class="monster-card-info">
               <div class="monster-card-name-row">
                 <span class="monster-name font-rpg">${item.name}</span>
-                <span class="monster-count-badge">x${item.count} abates</span>
+                <span class="monster-count-badge ${item.count === 0 ? 'zero' : ''}">
+                  ${item.count > 0 ? `x${item.count} abates` : '0 abates (aguardando)'}
+                </span>
               </div>
               <div class="monster-card-traits-row">
                 ${traits.weaknesses.length > 0 ? `
@@ -2453,6 +2551,30 @@ window.handleHuntSearchInput = function (slotId, query) {
 window.clearHuntSearch = function (slotId) {
   const idx = slotId - 1;
   state.huntFilters[idx] = '';
+  const s = state.slots[idx];
+  if (s) {
+    const card = document.getElementById(`slot-card-${slotId}`);
+    if (card) delete card.dataset.currentStatus;
+    renderSlot(s);
+  }
+};
+
+window.setHuntFilterLevel = function (slotId, level) {
+  const idx = slotId - 1;
+  if (!state.huntFilterLevels) state.huntFilterLevels = ['all', 'all', 'all', 'all'];
+  state.huntFilterLevels[idx] = level;
+  const s = state.slots[idx];
+  if (s) {
+    const card = document.getElementById(`slot-card-${slotId}`);
+    if (card) delete card.dataset.currentStatus;
+    renderSlot(s);
+  }
+};
+
+window.setHuntSortMode = function (slotId, mode) {
+  const idx = slotId - 1;
+  if (!state.huntSortModes) state.huntSortModes = ['level', 'level', 'level', 'level'];
+  state.huntSortModes[idx] = mode;
   const s = state.slots[idx];
   if (s) {
     const card = document.getElementById(`slot-card-${slotId}`);
@@ -3070,8 +3192,10 @@ function renderHuntDetailsModalContent() {
         ${monsters.length === 0 ? `
           <div style="color: var(--text-dim); font-size: 12px; padding: 12px;">Nenhum monstro catalogado nesta caçada.</div>
         ` : monsters.map((m) => {
-          const avatarUrl = m.outfitId ? `/api/avatar?outfitId=${m.outfitId}&head=0&body=0&legs=0&feet=0` : '/favicon.svg';
+          const avatarUrl = getMonsterAvatarUrl(m);
           const traits = getMonsterElementalTraits(m.elements);
+          const sess = slot?.session;
+          const bestiaryCount = sess?.bestiary?.kills?.[m.bestiaryId || m.name.toLowerCase()] ?? sess?.killsDetailed?.find(k => k.name.toLowerCase() === m.name.toLowerCase())?.bestiaryKills;
 
           return `
             <div class="monster-detail-card">
@@ -3081,7 +3205,14 @@ function renderHuntDetailsModalContent() {
                 </div>
                 <div class="monster-detail-identity">
                   <span class="monster-detail-name font-rpg">${m.name}</span>
-                  ${m.bestiaryId ? `<span class="monster-detail-code">ID: ${m.bestiaryId}</span>` : ''}
+                  <div class="monster-detail-meta-row">
+                    ${m.bestiaryId ? `<span class="monster-detail-code">ID: ${m.bestiaryId}</span>` : ''}
+                    ${bestiaryCount !== null && bestiaryCount !== undefined ? `
+                      <span class="monster-detail-bestiary-pill" title="Abates históricos acumulados no Bestiário">
+                        📖 Bestiário: <strong>${bestiaryCount.toLocaleString('pt-BR')}</strong> abates
+                      </span>
+                    ` : ''}
+                  </div>
                 </div>
               </div>
 

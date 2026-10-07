@@ -4624,6 +4624,32 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hunt-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hunt-sort-select {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 6px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.hunt-sort-select:hover,
+.hunt-sort-select:focus {
+  border-color: var(--gold);
+  color: var(--text-main);
 }
 
 .hunt-view-toggle {
@@ -4705,6 +4731,64 @@ body {
 
 .btn-clear-search:hover {
   color: var(--ruby);
+}
+
+/* Chips de Filtro por Adequação de Nível */
+.hunt-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: none;
+}
+
+.hunt-filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-filter {
+  background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+  line-height: 1.2;
+}
+
+.chip-filter:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-main);
+}
+
+.chip-filter.active {
+  background: rgba(245, 197, 24, 0.15);
+  border-color: var(--gold);
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.chip-filter.ideal.active {
+  background: rgba(46, 204, 113, 0.15);
+  border-color: var(--emerald);
+  color: var(--emerald);
+}
+
+.chip-filter.challenging.active {
+  background: rgba(243, 156, 18, 0.15);
+  border-color: #f39c12;
+  color: #f39c12;
+}
+
+.chip-filter.easy.active {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: #94a3b8;
+  color: #cbd5e1;
 }
 
 /* Carrossel / Grade de Cards de Caçadas */
@@ -5039,6 +5123,12 @@ body {
   border-radius: 3px;
 }
 
+.monster-count-badge.zero {
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 500;
+}
+
 .monster-card-traits-row {
   display: flex;
   align-items: center;
@@ -5275,6 +5365,25 @@ body {
   font-family: monospace;
 }
 
+.monster-detail-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.monster-detail-bestiary-pill {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gold);
+  background: rgba(245, 197, 24, 0.1);
+  border: 1px solid rgba(245, 197, 24, 0.25);
+  border-radius: 4px;
+  padding: 1px 6px;
+  line-height: 1.3;
+}
+
 .traits-group {
   display: flex;
   flex-direction: column;
@@ -5411,6 +5520,14 @@ body {
   }
   .hunt-tiers-cards-grid {
     grid-template-columns: 1fr;
+  }
+  .hunt-picker-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .hunt-header-actions {
+    justify-content: space-between;
   }
 }
 
