@@ -47,18 +47,40 @@ const inMemorySessions = new Map<
 >();
 
 // Persistent file storage for sessions (survives app/server restarts)
-const SESSIONS_FILE = path.resolve(process.cwd(), ".sessions.json");
+function getSessionsCandidatePaths(): string[] {
+  return [
+    path.resolve(process.cwd(), ".sessions.json"),
+    path.resolve(process.cwd(), "apps/api/.sessions.json"),
+    path.resolve(process.cwd(), "../.sessions.json"),
+    path.resolve("/app/.sessions.json"),
+  ];
+}
+
+function resolveSessionsFilePath(): string {
+  for (const candidate of getSessionsCandidatePaths()) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return path.resolve(process.cwd(), ".sessions.json");
+}
+
+let SESSIONS_FILE = resolveSessionsFilePath();
 
 function loadStoredSessions(): void {
   try {
-    if (fs.existsSync(SESSIONS_FILE)) {
-      const data = JSON.parse(fs.readFileSync(SESSIONS_FILE, "utf-8"));
-      const now = Date.now();
-      for (const [hash, entry] of Object.entries(data)) {
-        const item = entry as { session: SessionData; expiresAt: number };
-        if (item.expiresAt > now) {
-          inMemorySessions.set(hash, item);
-        }
+    for (const candidate of getSessionsCandidatePaths()) {
+      if (fs.existsSync(candidate)) {
+        try {
+          const data = JSON.parse(fs.readFileSync(candidate, "utf-8"));
+          const now = Date.now();
+          for (const [hash, entry] of Object.entries(data)) {
+            const item = entry as { session: SessionData; expiresAt: number };
+            if (item && item.expiresAt > now) {
+              inMemorySessions.set(hash, item);
+            }
+          }
+          SESSIONS_FILE = candidate;
+          break;
+        } catch {}
       }
     }
   } catch {}
@@ -73,7 +95,8 @@ function persistStoredSessions(): void {
         obj[hash] = entry;
       }
     }
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(obj, null, 2), "utf-8");
+    const targetFile = SESSIONS_FILE || path.resolve(process.cwd(), ".sessions.json");
+    fs.writeFileSync(targetFile, JSON.stringify(obj, null, 2), "utf-8");
   } catch {}
 }
 
@@ -305,11 +328,13 @@ const authPluginImpl: FastifyPluginAsync = async (app) => {
   app.decorate(
     "authenticate",
     async (request: FastifyRequest, reply: FastifyReply) => {
+      const queryToken = (request.query as Record<string, string> | undefined)?.token;
       const cookieSid =
         request.cookies[SESSION_COOKIE_NAME] ||
         (request.headers.authorization?.startsWith("Bearer ")
           ? request.headers.authorization.slice(7)
-          : undefined);
+          : undefined) ||
+        queryToken;
 
       if (!cookieSid) {
         return reply.status(401).send({
@@ -333,11 +358,13 @@ const authPluginImpl: FastifyPluginAsync = async (app) => {
   app.decorate(
     "optionalAuthenticate",
     async (request: FastifyRequest, _reply: FastifyReply) => {
+      const queryToken = (request.query as Record<string, string> | undefined)?.token;
       const cookieSid =
         request.cookies[SESSION_COOKIE_NAME] ||
         (request.headers.authorization?.startsWith("Bearer ")
           ? request.headers.authorization.slice(7)
-          : undefined);
+          : undefined) ||
+        queryToken;
 
       if (!cookieSid) return;
 

@@ -530,11 +530,72 @@ function getSessionRates(sess) {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers de Autenticação e Fetch
+// ---------------------------------------------------------------------------
+
+function getAuthToken() {
+  try {
+    return localStorage.getItem('idlex_token') || null;
+  } catch {
+    return null;
+  }
+}
+
+function setAuthToken(token) {
+  try {
+    if (token) {
+      localStorage.setItem('idlex_token', token);
+    } else {
+      localStorage.removeItem('idlex_token');
+    }
+  } catch {}
+}
+
+// Intercepta chamadas de fetch para injetar automaticamente o Bearer token se presente
+const originalFetch = window.fetch;
+window.fetch = function (resource, options = {}) {
+  const token = getAuthToken();
+  if (token) {
+    const headers = new Headers(options.headers || {});
+    if (!headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    options.headers = headers;
+  }
+  return originalFetch(resource, options);
+};
+
+// ---------------------------------------------------------------------------
 // Inicialização e Conexão SSE
 // ---------------------------------------------------------------------------
 
+function initSlots() {
+  for (let i = 1; i <= 4; i++) {
+    if (!state.slots[i - 1]) {
+      const defaultSlot = { id: i, status: 'idle' };
+      state.slots[i - 1] = defaultSlot;
+      renderSlot(defaultSlot);
+    }
+  }
+}
+
+async function fetchInitialSlots() {
+  try {
+    const res = await fetch('/api/slots');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        updateAllSlots(data);
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao buscar slots iniciais:', err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   setupLayoutControls();
+  initSlots();
 });
 
 function setupLayoutControls() {
@@ -605,7 +666,9 @@ function connectSSE() {
   }
 
   const indicator = document.getElementById('live-indicator');
-  const es = new EventSource('/api/events');
+  const token = getAuthToken();
+  const sseUrl = token ? `/api/events?token=${encodeURIComponent(token)}` : '/api/events';
+  const es = new EventSource(sseUrl);
   currentSSE = es;
 
   es.onopen = () => {
@@ -4182,7 +4245,10 @@ function updateAuthUI(user) {
 
     // Connect SSE once user is authenticated
     connectSSE();
+    // Carrega status atual dos slots imediatamente
+    fetchInitialSlots();
   } else {
+    setAuthToken(null);
     if (btnUser) btnUser.classList.remove('logged-in');
     if (userLabel) userLabel.textContent = 'Entrar';
     if (viewLogged) viewLogged.style.display = 'none';
@@ -4264,6 +4330,10 @@ window.handleLoginSubmit = async function (e) {
       return;
     }
 
+    if (data.token) {
+      setAuthToken(data.token);
+    }
+
     showAuthMsg('Login realizado com sucesso!', false);
     updateAuthUI(data.user);
     setTimeout(() => {
@@ -4333,12 +4403,14 @@ window.handleRegisterSubmit = async function (e) {
 window.handleLogout = async function () {
   try {
     await fetch('/api/v1/auth/logout', { method: 'POST' });
+    setAuthToken(null);
     updateAuthUI(null);
     showAuthMsg('Desconectado com sucesso.', false);
     setTimeout(() => {
       window.closeAuthModal();
     }, 600);
   } catch {
+    setAuthToken(null);
     updateAuthUI(null);
   }
 };

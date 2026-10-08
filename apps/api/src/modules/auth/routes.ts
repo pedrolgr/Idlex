@@ -289,11 +289,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           role: "admin",
         });
 
-        const isProduction = env.NODE_ENV === "production";
+        const isHttps =
+          req.protocol === "https" ||
+          req.headers["x-forwarded-proto"] === "https";
         reply.setCookie(SESSION_COOKIE_NAME, sessionToken, {
           path: "/",
           httpOnly: true,
-          secure: isProduction,
+          secure: isHttps,
           sameSite: "lax",
           maxAge: SESSION_TTL_SECONDS,
         });
@@ -361,12 +363,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         userAgent: req.headers["user-agent"],
       });
 
-      // Set HttpOnly, Secure, SameSite=Lax cookie
-      const isProduction = env.NODE_ENV === "production";
+      const isHttps =
+        req.protocol === "https" ||
+        req.headers["x-forwarded-proto"] === "https";
       reply.setCookie(SESSION_COOKIE_NAME, sessionToken, {
         path: "/",
         httpOnly: true,
-        secure: isProduction,
+        secure: isHttps,
         sameSite: "lax",
         maxAge: SESSION_TTL_SECONDS,
       });
